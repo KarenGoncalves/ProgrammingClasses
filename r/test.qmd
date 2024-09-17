@@ -1,0 +1,29 @@
+---
+title: "Untitled"
+format: 
+  revealjs:
+    fontsize: 2em
+    monofont: .1em
+---
+
+## The dataset
+
+The input file is the table [Arabidopsis_counts.csv](../../exampleData/Arabidopsis_counts.csv). 
+
+
+```{r, results='hide', echo=FALSE}
+counts = CustomSelection::sample_counts
+```
+
+```{.r}
+counts = read.csv("https://karengoncalves.github.io/Programming_classes/exampleData/Arabidopsis_counts.csv",
+                  header = T, row.names = 1)
+```
+
+This file has 12 columns (3 samples * 4 replicates) and 32833 rows (one per gene).
+
+Samples are aerial tissue of _Arabidopsis thaliana_ ecotype Col-0, harvested at 14 days post germination, with Basta (glyphosate) resistance gene and:
+
+- Control: GFP under the 35S promoter
+- Mlp37347 and Mlp124499: a candidate effector gene (*Mlp37347* or *Mlp124499* from the fungus *Melampsora larici-populina*) tagged with GFP under the 35S promoter
+

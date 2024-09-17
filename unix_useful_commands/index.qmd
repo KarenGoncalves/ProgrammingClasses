@@ -1,0 +1,10 @@
+---
+title: ""
+listing: 
+  contents: "posts/*.qmd"
+  type: grid
+  sort: "date asc"
+  fields: [title, categories, description]
+page-layout: full
+title-block-banner: false
+---

@@ -1,0 +1,53 @@
+---
+title: "less, more, head, tail, cat and nano"
+description: "Reading and writing text files"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "02 February 2023"
+categories:
+  - "Unix basics"
+  - Commands
+  - Text
+format: html
+---
+
+## Open and read files : `less` or `more`
+
+Softwares to open text files as read-only.
+
+- Use `less --help` or `man less` to see a manual on how to use `less` and `more --help` or `man more` to see how to use `more`
+- `less file1`
+	- Will open file1 to read. If you want to look for a word, type `/` then type the word.
+- `less file1 file2 file3`
+	- Will open the three files to read. You can move between the files by typing `:` followed by `p` to look at the previous file or `n` to look at the next one.
+
+`less` can read fastq.gz files (compressed files)
+
+
+## Print text to the screen : `cat`
+
+Prints file to the screen
+
+- `cat file1`: will print the content of file1 to the screen. If the file is a binary file (.bam), or if it is compressed (.zip, .tar, .gz), the printed text will be all gibberish
+- `cat file1 file2`: will print the content of file1 followed by the content of file 2
+- `cat file1 > file2; cat file3 >> file2`: is the same as `cat file1 file3 > file2`. 
+
+In the case of compressed text files, like fastq.gz, we can read it with `zcat`
+
+## View beginning or end of a file : `head` and `tail`
+
+Prints the first (`head`) or last (`tail`) 10 lines of a file to the screen. If you have a big file and you just want to see if it looks fine or what it contains, use this
+
+- `head file1`: will print the first 10 lines of file1
+- `head -n 20 file1`: the option `-n` allows you to specify the number of lines you want to be printed
+
+The behavior of `tail` is similar to `head`.
+
+## Edit text file : `nano`
+
+Software to edit text in the server. Used alone will open an empty file. When you try to close the file (Ctrl + x) will ask if you want to save it and ask for a name for the path where to save it.
+
+- `nano file1`
+	- Will open file1 for edition. If file1 does not exist, will create it.
+- `nano *`
+	- Will open all text files in the working directory for edition in alphabetic order. Once you close one, the next one is opened.

@@ -1,0 +1,47 @@
+---
+title: "File transfer"
+description: "rsync and scp"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "20 February 2023"
+categories:
+  - "Unix basics"
+  - Commands
+  - Servers
+format: html
+---
+
+
+## Syncronize files between your computer and a server : `rsync` or `scp`
+
+Will copy files and folders from one location to another. Use it with the path of the files and folders you wish to copy and the path to where you want the copy to be placed. You will be required to put your password with this command.
+
+In the commands below, you can replace `rsync` by `scp`. The second is more secure.
+
+- `rsync file1 file2 file3 user@server.ca:/home/user/folder1`
+	- Will copy the files (file1, file2 and file3) which are in the local computer (eg. the user's laptop) to the directory `/home/user/folder1` which is the remote computer accessed as `server.ca`. The `:` separates the remote computer name from the path to the folder of interest. Here, the path to the folder in the remote computer MUST be the absolute path.
+	- If the option `-v` is used, the computer will print what is happening (if the connection to the server was successfull, if it found the folder indicated in the command, what it is copying and if it was successfull)
+	- You can use up to 3 v's to get more information on what is happening: `-v`, `-vv` and `-vvv` are all accepted options and sometimes may help you figure out why something is not working.
+- `rsync -r folder1 user@server.ca:/home/user/folder1`
+	- Just as with `cp` and `rm`, you need to use `-r` to copy a folder with all its contents. This command will result in /home/user/folder1/folder1, because we are copying the whole folder
+- `rsync -r folder1/ user@server.ca:/home/user/folder1`
+	- This command will copy only the contents of folder1 to the server.
+- `rsync -r user@server.ca:/home/user/folder1/ folder1`
+	- This command will copy the contents of /home/user/folder1/ from the server.ca to our local computer in folder1
+
+All of the commands above work with scp (just replace rsync with scp).
+
+You can give the password to the server in the command itself, rather than waiting for a prompt, by using sshpass:
+
+```{.bash}
+sshpass -p 'MyPassword1!' rsync -r user@server.ca:/home/user/folder1 folder1
+````
+
+If you use an ssh-key (check [SSH keys and config file](./ssh_key_config.html)), you can run:
+
+
+```{.bash}
+scp -r HOST:/home/user/folder1 folder1
+````
+
+Just replace `HOST` with the name in the `Host` line in the `~/.ssh/config` file.

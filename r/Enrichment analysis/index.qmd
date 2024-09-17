@@ -1,0 +1,102 @@
+---
+draft: true
+title: "Differential expression analysis plots"
+author: "Karen Cristine Goncalves, Ph.D."
+description: "6th R class - transcriptomics sessions"
+linkcolor: grey
+callout-appearance: simple
+categories:
+  - R advanced
+  - "Differential gene expression"
+  - Omics
+  - Transcriptomics
+format: 
+  revealjs:
+    fontsize: 1.5em
+    transition: none
+    theme: dark
+    scrollable: true
+    output-location: fragment
+date: "4 April 2024"
+incremental: false
+echo: true
+warning: false
+eval: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## What is an enrichment analysis (pt1)
+
+Enrichment analysis is basically finding out if something is more frequent in a given group than it is supposed to be. Example, in 2023: 
+
+```{r}
+#| echo: false
+
+library(knitr)
+library(kableExtra)
+contingency = data.frame(
+  "University" =	c("UQTR", "McGill", "University of Toronto", "Total"),
+  "Undergrad" =	c(11585, 30303, 76061, 117949),
+  "Graduate" =	c(3659, 9077, 21617, 34353),
+  "Total" =	c(15244, 39380, 97678, 152302)
+)
+
+kable(contingency, caption = "Number of students enrolled in 2023 by university and degree") %>% kable_minimal()
+```
+
+## What is an enrichment analysis (pt2)
+
+```{r}
+#| echo: false
+total = contingency[4, ]
+contingency_pct = data.frame("University" = contingency$University,
+                                  "Undergrad" = (contingency$Undergrad / total$Undergrad)*100,
+                                  "Graduate" = (contingency$Graduate / total$Graduate)*100
+                             )
+kable(contingency_pct, caption = "In total, U of T has more undergrad and graduate students than either UQTR or McGill") %>% kable_minimal()
+```
+
+## What is an enrichment analysis (pt3)
+
+```{r}
+#| echo: false
+
+contingency_pct = data.frame("University" = contingency$University,
+                             "Undergrad" = (contingency$Undergrad / contingency$Total)*100,
+                             "Graduate" = (contingency$Graduate / contingency$Total)*100
+                             )
+kable(contingency_pct, caption = "In proportion, UQTR had more graduate students in 2023 compared to either McGill or U of T") %>% kable_minimal()
+```
+
+. . .
+
+We calculate the frequencies based on the total of what was counted (there are other universities in Canada, but since they were not included in the survey, we don't include them in the total). 
+
+In the case of the genes, you calculate the frequencies based only on the genes kept after filtering!
+
+
+## Prepare annotation information
+
+```{r}
+#| warning: false
+#| output: false
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+	cran_packages = c("tidyverse", "patchwork"),
+	bioconductor_packages = c("AnnotationDbi", "biomaRt", "DBI", "clusterProfiler", "DOSE")
+)
+
+theme_classic() %>% theme_set
+```
+
+
+## Code from previous class: Prepare input {auto-animate="true"}
+
+```{r}
+
+```
+

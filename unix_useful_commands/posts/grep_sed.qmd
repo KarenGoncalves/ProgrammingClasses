@@ -1,0 +1,86 @@
+---
+title: "grep and sed"
+description: "Search and replace"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "10 February 2023"
+categories:
+  - "Unix basics"
+  - Commands
+  - Text
+format: html
+---
+
+
+## Search for word in text file : `grep`
+
+Searches a text in a file
+
+- `grep word file1`: will print to the screen every line of file1 that contains the word _word_ in it.
+
+
+- `grep "this is my search" file1`: will print to the screen every line of file1 that contains the phrase _this is my search_ in it. Note that, since there are spaces included in the search, the phrase is surrounded by quotes (simple or double, doesn't matter). 
+
+
+- `grep -i "this is my search" file1`: same as the search above, except that the option `-i` means "ignore case", so all of the phrases below would match the search:
+  - "this is my search"
+  - "This Is My Search"
+  - "this is MY search"
+  - "this is my SEARCH"
+  - "tHiS iS mY sEaRcH"
+  - "THIS is my search"
+  
+  
+- `grep -v word file1`: the `-v` option REVERSES the search, so the result would be every line of file1 that DOES NOT contain the word _word_ in it. 
+
+If you want to search for many words starting/ending with the same characters, or containing the same characters, you can use search patterns, also known as regular expressions, by adding the option `-e` to grep:
+
+- `grep -e "^\w+\t" file1`: grep will search in file the regular expression in quotes, that means "something at the beginning of a line containing letters, numbers or _ followed by tab:
+  - `^` at the start of the line
+  - `\w+` any letter, number or _ (underline)
+  - `\t` tab (appears as white space)
+  
+[Check here fore more information on REGular EXpressions (Regex)](https://cheatography.com/davechild/cheat-sheets/regular-expressions/)
+
+:::.{callout-note}
+MobaxTerm, git bash and the unix shell on the server all use different RegEx. Using wildcards such as \w, \d, \W [no alphanumeric character], etc, doesn't always work because of that. 
+
+A safe way to use RegEx is to create our own wildcards, eg.:
+
+  - [A-Za-z_0-9] instead of \\w
+  - [0-9] instead of \\d
+  - [^A-Za-z_0-9] instead of \\W.
+:::
+
+
+## `sed 's///'`
+
+You can use SED for many things, but it is very powerful for replacing text, either specific words or Regex, or even using variables. 
+
+The command is given inside quotes (single or double) and is split into three parts with the `/`:
+
+- `'s'` - what we want to do: substitute
+- The word or search pattern we are looking for (goes between the first and second `/`)
+- What we want to replace the search pattern with (goes between the second and third`/`)
+- The end of the command (part after the third slash) may be empty or may include another instruction to sed. `g` means: search (and replace) it everywhere.
+
+Note that sed considers each line of a file separately. 
+
+Let's say we want to work with a DNA sequence and we want to replace the bases:
+
+![](https://i.sstatic.net/22N5fm.jpg)
+
+
+- If I want to replace `AA` with `NN`: `sed 's/AA/NN/g'`.
+- If I want to replace `A`s and `T`s with `W`: `sed -e 's/[AT]/W/g'`
+- If I want to put the file name as the sequence name, I can store the file name as a variable and use it in sed: 
+
+```
+filename=my_fasta.fa
+sed -E "s/>/>$filename /"
+# Note that when using a variable inside sed, we need to use double quotes
+```
+
+- If I want to replace TATA with TATA 3x (create a repeat in the region): `sed 's/(TATA)/\1\1\1/g'`, where `\1` is a reference to the first pattern saved (put inside parenthesis)
+
+For more about `sed`, check [class 6](/unix/Class6_SED/index.html)

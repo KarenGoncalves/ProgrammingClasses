@@ -1,0 +1,58 @@
+---
+title: "Files and directories"
+description: "copy, delete and move"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "26 January 2023"
+categories:
+  - "Unix basics"
+  - Commands
+  - Files
+  - Directories
+format: html
+---
+
+
+## Copy files or folders : `cp`
+
+*Copy*: use `cp` followed by the path of the file you want to copy and the path to where you want to put the copy.
+
+- `cp file1 file2`
+	- Creates a copy of file1 and names it file2. 
+
+- `cp -r folder1 folder2`
+	- If you want to copy a folder, you need to add the option `-r` (recursive, which means it will copy everything inside the folder).
+
+- `cp file1 folder1`
+	- Will create a copy of file1 in the folder1 (the copy will be named file1).
+
+- `cp -v -r folder1 folder2`
+	- Creates a copy of folder1 and names it folder2. 
+	- The option `-v` (verbose) will make the computer print to the screen what it is doing (copied folder1/file1 to folder2/file1; copied folder1/file2 to folder2/file2; etc). 
+
+## Remove files or folders : `rm`
+
+*Remove*: use `rm` followed by the path to a file or folder you wish to delete. It will delete FOREVER, **there is no trashbin when you use `rm`**, so use with care
+
+- `rm file1 file2 file3`
+	- Delete all files listed after the command
+
+- `rm -r folder1`
+	- Delete all files in the folder1 and the folder itself (will only work if you use `-r`)
+
+- `rm *`
+	- Deletes EVERYTHING (`*`) in the current folder, except folders (since `-r` was not included)
+
+- `rm -v *`
+	- Deletes everything in the current folder, except folders, and prints to the screen the files it deleted while doing it.
+
+## Create folders/directories: `mkdir`
+
+*make directory*: use `mkdir` followed by the name you want to give to the new folder. You can create multiple folders at once by simply separating the names with a space
+
+### Delete an empty folder: `rmdir` 
+
+*remove directory*: Use with the path to a folder to delete it FOREVER (same as `rm`). Only works if the folder is empty.
+
+It is what `rm -r folder` uses to remove the folder. 
+  - Once it removed all the files in the folder, it uses `rmdir folder`.

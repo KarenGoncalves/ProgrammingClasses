@@ -1,0 +1,467 @@
+---
+draft: false
+title: "Differential expression analysis plots"
+author: "Karen Cristine Goncalves, Ph.D."
+description: "6th R class - transcriptomics sessions"
+linkcolor: grey
+callout-appearance: simple
+categories:
+  - R advanced
+  - "Differential gene expression"
+  - Omics
+  - Transcriptomics
+format: 
+  revealjs:
+    fontsize: 1.5em
+    transition: none
+    theme: dark
+    scrollable: true
+    output-location: fragment
+date: "23 March 2024"
+incremental: false
+echo: true
+warning: false
+eval: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## Input data and DESeq2 analysis
+
+
+```{r}
+#| warning: false
+#| output: false
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+	cran_packages = c("tidyverse", "patchwork"),
+	bioconductor_packages = c("Biostrings", "DESeq2", "ggtree")
+)
+
+theme_classic() %>% theme_set
+```
+
+## Code from previous class: Prepare input {auto-animate="true"}
+
+```{r}
+counts = read.csv("https://karengoncalves.github.io/Programming_classes/exampleData/Arabidopsis_counts.csv",
+                  header = T, row.names = 1)
+```
+
+## Code from previous class: Prepare input {auto-animate="true"}
+```{r}
+counts = read.csv("https://karengoncalves.github.io/Programming_classes/exampleData/Arabidopsis_counts.csv",
+                  header = T, row.names = 1)
+
+design_matrix = 
+  data.frame(Replicates = names(counts)) %>%
+  mutate(Genotype = 
+           gsub("_\\d+$", "", 
+                Replicates))
+```
+
+## Code from previous class: Prepare input {auto-animate="true"}
+```{r}
+counts = read.csv("https://karengoncalves.github.io/Programming_classes/exampleData/Arabidopsis_counts.csv",
+                  header = T, row.names = 1)
+
+design_matrix = 
+  data.frame(Replicates = names(counts)) %>%
+  mutate(Genotype = 
+           gsub("_\\d+$", "", 
+                Replicates))
+
+genes_not_expressed = rowSums(counts) == 0
+counts_filtered = counts[ !genes_not_expressed, ]
+```
+
+## Code from previous class: Main analysis
+
+```{r}
+#| warning: false
+#| output: false
+deseq_dataset = DESeqDataSetFromMatrix(
+  countData = counts_filtered,
+  colData = design_matrix, # colData means data about the columns of the count matrix
+  design = ~Genotype # basically: expression in function of the genotype
+) %>% DESeq()
+```
+
+## Code from previous class: Get the results
+
+```{r}
+results_DESeq2 <- 
+  lapply(resultsNames(deseq_dataset)[-1], \(comparison) {
+    results(deseq_dataset, 
+            name = comparison,
+            pAdjustMethod = "BH")@listData %>%
+      as_tibble() %>%
+      mutate(
+        Gene_name = rownames(counts_filtered),
+        State = case_when(
+          log2FoldChange < -2 & padj < 0.01 ~ "Down-regulated",
+          log2FoldChange > 2 & padj < 0.01 ~ "Up-regulated",
+          .default = "equal"),
+        Contrast = comparison
+      )
+  }) %>%
+  list_rbind() 
+```
+
+# Check for sample homogeneity
+
+There are two basic ways we can check for sample homogeneity, meaning how similar the replicates of a sample are to each other: principal component analysis (PCA) or clustering analysis. 
+
+To perform either of them, we need to use the normalized data, not the read counts. 
+
+## Normalize counts
+
+You can either use `rlogTransformation` or `varianceStabilizingTransformation` for PCA, as they return an object that includes the metadata. The first takes about 5x longer than the second, but results are similar. Check the help page for details on the computation.
+
+To see the transformed counts, you need to run `assay` on the result.
+
+- `rlogTransformation`
+
+```{r}
+rlog_transformed = rlogTransformation(deseq_dataset)
+assay(rlog_transformed) %>% head
+```
+
+- `varianceStabilizingTransformation` (VST)
+```{r}
+VST_data = varianceStabilizingTransformation(deseq_dataset)
+assay(VST_data) %>% head
+
+```
+
+## PCA {auto-animate="true"}
+
+DESeq2 offers a function for PCA that takes the result from either of the two functions and returns a ggplot object. 
+
+Because of this, we can add things to the plot as if it was a ggplot.
+```{r}
+plotPCA(rlog_transformed, 
+        intgroup = "Genotype", # color samples by
+        ntop = nrow(counts_filtered)) #use how many genes for the computation
+```
+
+## PCA {auto-animate="true"}
+
+DESeq2 offers a function for PCA that takes the result from either of the two functions and returns a ggplot object. 
+
+Because of this, we can add things to the plot as if it was a ggplot.
+```{r}
+plotPCA(rlog_transformed, 
+        intgroup = "Genotype", # color samples by
+        ntop = nrow(counts_filtered)) + #use how many genes for the computation
+  labs(color =  "") +
+  scale_color_manual(values = c("Control" = "black",
+                                  "Mlp37347" = "red",
+                                  "Mlp124499" = "blue")
+  )
+```
+
+## Clustering
+
+Hierarchical clustering is a graphical way to show the pairwise similarity between samples.
+
+We just need to edit the rlog_transformed or the VST_data so that the samples are shown in the rows and the genes in the columns.
+
+```{r}
+distance_data = 
+  rlog_transformed %>%
+  assay() %>%
+  t %>% dist() # default is euclidean
+
+cluster_hc = hclust(distance_data)
+plot(cluster_hc)
+```
+
+## Add a heatmap
+
+You can show the dendrogram and the distance matrix in a heatmap
+
+```{r}
+distance_data %>%
+  as.matrix %>%
+  stats::heatmap(Rowv = as.dendrogram(cluster_hc),
+                 symm = T)
+```
+
+## Improved heatmap + dendrogram: prepare data {auto-animate="true"}
+
+If you want to plot it with ggplot to have more control, you need to do some transformations
+
+```{r}
+# Pivot longer the distance matrix and add the row names
+long_distance <- 
+  distance_data %>% as.matrix() %>% as_tibble() %>%
+  # rownames of the distance matrix are in the attr(ibute) Labels
+  mutate(Rep1 = attr(distance_data, which = "Labels")) %>% 
+  pivot_longer(cols = !Rep1,
+               names_to = "Rep2", 
+               values_to = "distance")
+```
+
+## Improved heatmap + dendrogram: prepare data {auto-animate="true"}
+
+If you want to plot it with ggplot to have more control, you need to do some transformations
+
+```{r}
+# Pivot longer the distance matrix and add the row names
+long_distance <- 
+  distance_data %>% as.matrix() %>% as_tibble() %>%
+  # rownames of the distance matrix are in the attr(ibute) Labels
+  mutate(Rep1 = attr(distance_data, which = "Labels")) %>% 
+  pivot_longer(cols = !Rep1,
+               names_to = "Rep2", 
+               values_to = "distance")
+
+# Add a column with the relative distance of the samples
+(max_distance = max(long_distance$distance))
+long_distance = long_distance %>%
+  mutate(Rel_distance = (distance / max_distance) * 100)
+```
+
+## Improved heatmap + dendrogram: prepare data {auto-animate="true"}
+
+If you want to plot it with ggplot to have more control, you need to do some transformations
+
+```{r}
+# Pivot longer the distance matrix and add the row names
+long_distance <- 
+  distance_data %>% as.matrix() %>% as_tibble() %>%
+  # rownames of the distance matrix are in the attr(ibute) Labels
+  mutate(Rep1 = attr(distance_data, which = "Labels")) %>% 
+  pivot_longer(cols = !Rep1,
+               names_to = "Rep2", 
+               values_to = "distance")
+
+# Add a column with the relative distance of the samples
+(max_distance = max(long_distance$distance))
+long_distance = long_distance %>%
+  mutate(Rel_distance = (distance / max_distance) * 100)
+
+# Sort the sample names according to the dendrogram
+long_distance$Rep1 = 
+  factor(long_distance$Rep1, 
+         levels = cluster_hc$labels[cluster_hc$order]
+  )
+long_distance$Rep2 = 
+  factor(long_distance$Rep2, 
+         levels = cluster_hc$labels[cluster_hc$order]
+  )
+```
+
+## Improved heatmap + dendrogram: plots
+
+- Tree should not have the tip labels, cause the labels will be the axis of the heatmap
+
+```{r}
+(sample_dendro = ggtree(cluster_hc, 
+                        branch.length = "none", 
+                        ladderize = F) +
+    coord_cartesian(xlim = c(0, 7))
+)
+```
+
+- Prepare the heatmap without axes titles and remove the text from the x-axis.
+```{r}
+(heatmap_distance = long_distance %>%
+  ggplot() +
+  geom_tile(aes(x = Rep1, y = Rep2, fill = Rel_distance)) +
+  scale_fill_gradient(high = "white",
+                      low = "black",
+                      name = "Relative\nDistance (%)") +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.title = element_blank()) 
+)
+```
+
+- Join plots
+
+```{r}
+wrap_plots(sample_dendro, heatmap_distance, 
+           widths = c(2, 8))
+```
+
+
+# Plots of gene deregulation
+
+## Volcano plots - Basic
+
+Normally, we want to plot the deregulated genes, find patterns among them, etc. The first thing we can plot is a volcano plot for each contrast checked. 
+
+It is simply the fold change in the x-axis and the -log<sub>10</sub>p-adj in the y-axis.
+
+Note that there are cases where the p-value, and thus the adjusted p-value, are NA, so we will create a new variable that replaces NA with 1 (those genes are not deregulated)
+
+```{r}
+(basic_volcanos = results_DESeq2 %>%
+  mutate(new_padj = ifelse(is.na(padj), 1, padj)) %>%
+  ggplot(aes(x = log2FoldChange, y = -log10(new_padj),
+             color = State, alpha = State)) +
+  geom_point() +
+  facet_wrap(~Contrast)
+)
+```
+
+## Improve aesthetics {auto-animate="true"}
+```{r}
+basic_volcanos +
+  xlim(-10, 10) +
+  scale_color_manual(name = "", values =
+                       c("Up-regulated" = "red",
+                         "Down-regulated" = "blue",
+                         "equal" = "grey"))
+```
+
+## Improve aesthetics {auto-animate="true"}
+```{r}
+basic_volcanos +
+  xlim(-10, 10) +
+  scale_color_manual(name = "", values =
+                       c("Up-regulated" = "red",
+                         "Down-regulated" = "blue",
+                         "equal" = "grey")) +
+  scale_alpha_manual(name = "", values =
+                       c("Up-regulated" = 1,
+                         "Down-regulated" = 1,
+                         "equal" = 0.3))
+
+```
+
+## Improve aesthetics {auto-animate="true"}
+
+```{r}
+basic_volcanos +
+  xlim(-10, 10) +
+  scale_color_manual(name = "", values =
+                       c("Up-regulated" = "red",
+                         "Down-regulated" = "blue",
+                         "equal" = "grey")) +
+  scale_alpha_manual(name = "", values =
+                       c("Up-regulated" = 1,
+                         "Down-regulated" = 1,
+                         "equal" = 0.3)) +
+   labs(x = expression("log"[2]~"Fold Change"),
+       y = expression("-log"[10]~"adjusted p-Value")) +
+  theme(legend.position = "bottom")
+
+```
+
+## Heatmap of deregulated genes - prepare input
+
+In our case, we just have one factor (Genotype) in the design formula, and both contrasts are against the control sample. 
+
+So we can modify the table of results to remove the redundant information
+
+```{r}
+results_DESeq2_filtered = results_DESeq2 %>%
+  mutate(shortContrast = gsub("Genotype_(\\w+)_vs_Control",
+                              "\\1", Contrast)
+  ) %>%
+  filter(abs(log2FoldChange) > 2 & padj < 0.01)
+```
+
+Now we also want to sort the genes so that the ones with similar deregulation are grouped together. We can use a cluster analysis for that.
+
+But, we need to use a wide table, not a long one, to compute the distance matrix. We will also filter out the genes that are not deregulated, so that the analysis don't consider non-significant differences.
+
+```{r}
+wide_results =  results_DESeq2_filtered %>%
+  pivot_wider(id_cols = "Gene_name", 
+              names_from = shortContrast, 
+              values_from = log2FoldChange,
+              values_fill = 0) %>%
+  as.data.frame()
+rownames(wide_results) = wide_results$Gene_name
+```
+
+- `values_fill = 0`: after filtering, there will be genes with fold change levels present for only one contrast because they are not deregulated in the other condition. Since in the wide format, we need values for both contrasts, we replace the empty cell with 0.
+
+## Heatmap of deregulated genes - gene clustering
+
+Now we can use `wide_results` in the `dist` function? 
+
+Yes, after we remove the `Gene_name` column (dist only accepts numbers)
+
+```{r}
+cluster_genes = 
+  wide_results[-1] %>%
+  dist() %>%
+  hclust
+
+ggtree(cluster_genes, layout = "dendrogram")
+```
+Now we just make a column of ordered genes
+
+```{r}
+results_DESeq2_filtered =
+  results_DESeq2_filtered %>%
+  mutate(orderedGenes = 
+           factor(Gene_name, 
+                  levels = cluster_genes$labels[cluster_genes$order])
+         )
+```
+
+
+## Heatmap of deregulated genes - plot {auto-animate="true"}
+
+Whether you plot the genes in the x or in the y axis depends on how readable the plot is in the end (how many genes are deregulated, how many contrasts you have, etc)
+
+```{r}
+results_DESeq2_filtered %>%
+  ggplot(aes(x = orderedGenes, y = shortContrast, 
+             fill = ifelse(abs(log2FoldChange) > 2 & padj < 0.01,
+                           log2FoldChange, 0)
+  )) +
+    geom_tile() 
+```
+## Heatmap of deregulated genes - plot {auto-animate="true"}
+
+Whether you plot the genes in the x or in the y axis depends on how readable the plot is in the end (how many genes are deregulated, how many contrasts you have, etc)
+
+```{r}
+results_DESeq2_filtered %>%
+  ggplot(aes(x = orderedGenes, y = shortContrast, 
+             fill = ifelse(abs(log2FoldChange) > 2 & padj < 0.01,
+                           log2FoldChange, 0)
+  )) +
+    geom_tile() +
+  scale_fill_gradient2(name = "Fold change",
+                       mid = "white", 
+                       low = "midnightblue", 
+                       high = "red") 
+```
+
+## Heatmap of deregulated genes - plot {auto-animate="true"}
+
+Whether you plot the genes in the x or in the y axis depends on how readable the plot is in the end (how many genes are deregulated, how many contrasts you have, etc)
+
+```{r}
+results_DESeq2_filtered %>%
+  ggplot(aes(x = orderedGenes, y = shortContrast, 
+             fill = ifelse(abs(log2FoldChange) > 2 & padj < 0.01,
+                           log2FoldChange, 0)
+  )) +
+    geom_tile() +
+  scale_fill_gradient2(name = "Fold change",
+                       mid = "white", 
+                       low = "midnightblue", 
+                       high = "red") +
+  theme(axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom",
+        axis.ticks = element_blank())
+```
+
+## Resources
+
+- [Hierarchical clustering](https://towardsdatascience.com/understanding-the-concept-of-hierarchical-clustering-technique-c6e8243758ec)
+- [PCA](https://towardsdatascience.com/a-one-stop-shop-for-principal-component-analysis-5582fb7e0a9c)
+- [Variance stabilizing transformation and regularized log transformation](https://www.bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#variance-stabilizing-transformation)

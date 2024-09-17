@@ -1,0 +1,24 @@
+---
+title: "ls"
+description: "List files"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "17 January 2023"
+categories:
+  - "Unix basics"
+  - Commands
+format: html
+---
+
+
+`ls`, used alone, will print the contents of the current directory. If it is followed by a path to a directory, will print its contents. 
+
+Options (letters or words preceded by "-" or "--", respectively) will change how and what is printed.
+
+- `ls -a` or `ls --all`
+	- Will print all contents of the working directory, including hidden files (which start with a dot, eg. .ssh).
+- `ls -alhs Desktop` or `ls --all -l --sort --human Desktop`
+	- Will print all the contents (`-a` or `--all` including hidden files) in the form of a list (`-l`) that includes the permissions of each file, their owners, the date of the last modification and their size in human format (`-h` or `--human`; 4Kb instead of 4000b) and sort them alphabetically (`-s` or `--sort`; other options can be used to change how to sort the files).
+
+
+To know other options for `ls`, run `man ls` or `ls --help`

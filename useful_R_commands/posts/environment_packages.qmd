@@ -1,0 +1,127 @@
+---
+title: "Objects and packages"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "2 November 2023"
+categories:
+  - "R basics"
+format: html
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+## Check and clean environment and load packages
+
+### Objects in R environment
+
+```{.r}
+# Check what you have in the environment
+ls()
+
+# remove an object from the environment
+rm("cheat_sheet"); ls()
+```
+
+### Install and load packages
+
+To know what packages you have installed, their versions and dependencies, you can use the function `installed.packages()`. 
+This returns a table with information about the packages you have installed.
+
+```{r}
+installed.packages()
+```
+
+Since the rownames of this table are the names of the packages, you can use them to check if a package you want to use is installed or not:
+
+```{r}
+# I already installed tidyverse, so the test above returns "TRUE"
+"tidyverse" %in% rownames(installed.packages())
+
+# I haven't installed CAMERA, so it returns "FALSE"
+"CAMERA" %in% rownames(installed.packages())
+```
+### Installing packages
+
+It is important to know the source of the package you want to use. So when you see a script online that does what you want to do, check the names of the packages loaded (typically they are at the top of the script) and run a google search on it.
+
+- Ex: I want to use tidyverse, I search `tidyverse R`. 
+
+The home page of the package should tell you how to install it. But if it does not call `devtools` or `BiocManager`, it is normally from CRAN.
+
+:::{.panel-tabset collapse="true"}
+
+# CRAN
+
+The typical place from where we get R packages is [CRAN](https://cran.r-project.org/web/packages/).
+
+This is the easiest installation, since it does not require anything before you can install your package of interest.
+
+```{.r}
+packages = c("tidyverse", "venn")
+install.packages(packages)
+```
+
+# Bioconductor packages
+
+For these, we use the package BiocManager.
+
+```{.r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+pkgs.bioconductor = c("msa", "Biostrings")
+pkgs.To.Install = which(! pkgs.bioconductor %in% installed.packages())
+if (length(pkgs.To.Install) != 0) {
+	BiocManager::install(pkgs.bioconductor[pkgs.To.Install])	
+}
+```
+
+:::{.callout-tip}
+In `BiocManager::install`, the `::` indicates that the function `install` comes from the package `BiocManager`.
+
+So even if there is another package with the same function, R will know which one to use.
+:::
+
+# Github packages
+
+:::{.callout-tip}
+
+Github is a website that has folders for each user, and each user may have multiple folders: one for each project. Example, in:
+
+- https://github.com/KarenGoncalves/R_class_examples
+	- `KarenGoncalves/` is my folder in the website, in there I have over 20 folders, one for each project.
+	- R_class_examples is one of them.
+:::
+
+```{.r}
+# We need to use devtools, so we need to install it if we haven't done it yet.
+if (! "devtools" %in% installed.packages()) {
+	install.packages("devtools")
+}
+
+repos.github = c("YuLab-SMU/ggmsa")
+pkgs.github = gsub(".+/", "", repos.github) # remove the folder name
+
+# To install the package, we need the folder + package name
+devtools::install_github(repos.github)	
+
+```
+
+:::
+
+### Loading packages
+
+We just put the names of the packages we want to use inside the function `library`. 
+
+Note that `library` can only take one package at a time and that you can use the package name with or without quotes.
+
+If the package name is in a variable, you need to use the options `character.only = T`
+
+```{.r}
+# Load a package into the R session
+library(tidyverse)
+# OR
+myPackage = "tidyverse"
+library(myPackage, character.only = T)
+```

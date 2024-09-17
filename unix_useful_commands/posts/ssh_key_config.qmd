@@ -1,0 +1,114 @@
+---
+title: "SSH keys and config file"
+description: "Simplify the connection to the server"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "28 August 2024"
+categories:
+  - "Unix basics"
+  - Commands
+  - Servers
+format: html
+---
+
+
+## Create ssh key and configure server to use it
+
+ssh-keys are files stored both in your computer and in a server: your computer has a private version, the server has a public one. They replace passwords and are more secure. 
+
+To use them, you need to:
+
+1. Create the key pair: run `ssh-keygen`
+2. Put the public key in the server: either use `ssh-copy-id` or copy the text of the file to the server in a file called `~/.ssh/authorized_keys`
+3. Log in to the server using `ssh SERVERNAME -i KEY_PATH` or `sftp SERVERNAME -i KEY_PATH`
+
+## Use `~/.ssh/config` to speed up the log in procedure
+
+The file `~/.ssh/config` has a specific format (below, the blank space between the start of the line and the first letter of the line is 4 spaces, do not use tab for that!):
+
+```{.bash}
+Host server1
+    HostName server.ca
+    UserName user
+    IdentityFile KEY_PATH
+```
+
+In each line, the first word has to be typed exactly as shown, since they are keywords (parameters) for bash. The second word is specific to us:
+
+1. `Host server1`: for each server we want to use, we give a short simplified name that we will use to connect later (instead of `ssh user@server.ca -i KEY_PATH`, we will simply type `ssh server1`)
+2. `HostName server.ca`: url of the server (eg. `cedar.alliancecan.ca` for Alliance Canada's Cedar)
+3. `UserName user`: our username for the server
+4. `IdentityFile KEY_PATH`: full path to the ssh-key file for that server
+
+If you use the same username and ssh-key for several servers (eg. all Alliance Canada servers), you can use a config like:
+
+```{.bash}
+Host *.ca
+    UserName user
+    IdentityFile KEY_PATH
+    
+
+Host server1.ca
+    HostName server1.alliancecan.ca
+
+
+Host server2.ca
+    HostName server2.alliancecan.ca
+```
+
+This means that for all hosts with name ending in ".ca", ssh should use the same UserName and IdentityFile. Then, the specific info for each server is given, ie. their url.
+
+
+## Example script to create a config file
+
+You can use the script below (copy in a file and run `sh PATH_TO_SCRIPT`) to create the config file. 
+
+```{.bash}
+#!/bin/sh
+
+cd ~
+mkdir .ssh
+cd .ssh
+
+USER=USERNAME # REMEMBER TO CHANGE
+SERVERS=(server1 server2 server3) # REMEMBER TO CHANGE
+key_file=~/.ssh/keys/my_key
+
+ssh-keygen -f $key_file -t rsa -b 4096 -C "Key for ${SERVERS[@]}"
+
+
+echo "Host *
+    User $USER
+    IdentityFile $key_file
+
+" > config
+
+for server in ${SERVERS[@]}; do
+	echo "Host $server
+    HostName $server.alliancecan.ca
+
+" >> config
+	ssh-copy-id -i $key_file $server
+done
+```
+
+Pay attention to some details:
+
+- Line 7. Change USERNAME to your username in the servers (all Alliance Canada servers use the same username)
+- Line 8. Change the server names. Remember that this name is a short one to facilitate your connection. 
+- Line 9. If you want to save the key with another name, change it there.
+- Line 18. If you already have a config file with other information you want to keep, change the ">" to ">>", otherwise the echo output will replace your original file.
+
+When you run the script, ssh-copy-id will attempt to log in to each server (attempt because, if there are typos on the username or host name, it will not succeed), it will ask your password for the server (in the screen, the following message will appear: `user@server.alliancecan.ca password:`). 
+
+:::{.callout-warning}
+REMEMBER: 
+
+  - You cannot see what you are typing
+  - You cannot see whether or not your are typing
+  - You cannot use `backspace` or `delete` if you make a mistake. If you realise you typed something wrong, just press enter and try again. If you are afraid of make a mistake, just write the password somewhere else then copy and paste it.
+:::
+
+SSH will then let you know if it was able to copy the key to each server.
+
+Once this procedure is done, you can user `ssh server1` (replacing server1 with the actual name of the server) to test whether the config file is working or not.

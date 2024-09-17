@@ -1,0 +1,72 @@
+---
+title: "Overview data"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "1 November 2023"
+format: html
+categories:
+  - "R basics"
+  - Summarize
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+
+## `str`, `summary` and other functions
+
+### `str`
+
+See data structure. Shows number of rows and columns in a data frame, classes of the columns, first few elements of each column.
+
+```{r}
+str(iris)
+```
+
+:::{.callout-note} 
+You can add the option "max.level = X" if you know the object is nested (list inside of list inside of list) so that you don't print too many nested levels.
+:::
+
+### `head` or `tail`
+
+Shows the beginning or the end of an object (you can specify the number of lines printed with `n = X`)
+
+```{r}
+head(iris, n = 7)
+tail(iris, n = 3)
+```
+
+## `summary`
+
+Print column-wise info about data frames, shows relevant data from tests, such as `aov` or t.test.
+
+```{r}
+summary(iris)
+```
+
+## Dimensions
+
+- `dim(x)` 
+	- Dimensions of a dataset: For a data frame it is c(1, 2), for a vector it is c(1).
+-`length(x)` 
+	- number of elements in a vector, or columns in a data frame or elements in a list
+- `ncol` or `nrow` 
+	- number of columns/rows in a data frame
+- `names` 
+	- Names of columns of a data frame
+	- Names of objects in a named list or named vector
+
+```{r}
+dim(iris)
+length(iris)
+length(iris[,1])
+
+ncol(iris)
+nrow(iris)
+
+names(iris)
+
+my_numbers = 1:3; names(my_numbers) = c("A", "B", "C")
+names(my_numbers)
+```

@@ -1,0 +1,35 @@
+---
+title: "Where and who am I?"
+description: "One's location in the computer or server"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "11 January 2023"
+categories:
+  - "Unix basics"
+  - Concepts
+format: html
+---
+
+
+**Directory** is the same as **Folder**. Working directory means the folder in which you currently are.
+  
+:::{.callout-note}
+Commands are normally acronyms, so the command itself tells you what it does
+:::
+
+
+## Where am I?
+
+- `pwd` 
+  - *Print Working Directory*
+  - Prints the absolute path of your current location in the computer.
+
+:::{.callout-note}
+Commands are normally acronyms, so the command itself tells you what it does
+:::
+
+`cd`: *change directory*: use `cd` followed by the path to a folder to change your location in the computer.
+
+## `whoami`
+
+The command `whoami` literally answers the question in the context of the computer, meaning it tells you who is the current user. Try running it in your computer right now!

@@ -1,0 +1,352 @@
+---
+title: "Differential expression analysis"
+author: "Karen Cristine Goncalves, Ph.D."
+description: "5th R class - transcriptomics sessions"
+linkcolor: grey
+callout-appearance: simple
+categories:
+  - R advanced
+  - "Differential gene expression"
+  - Omics
+  - Transcriptomics
+format: 
+  revealjs:
+    fontsize: 1.5em
+    transition: none
+    theme: dark
+    scrollable: true
+date: "21 March 2024"
+incremental: false
+echo: true
+warning: false
+eval: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## The dataset
+
+```{r}
+#| echo: false
+#| output: false
+#| warning: false
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+	cran_packages = c("tidyverse"),
+	bioconductor_packages = c("Biostrings", "DESeq2"),
+	github_packages = "KarenGoncalves/CustomSelection"
+)
+```
+
+The input file is the table [Arabidopsis_counts.csv](../../exampleData/Arabidopsis_counts.csv). 
+
+```{r, results='hide', echo=FALSE}
+counts = CustomSelection::sample_counts
+```
+
+```{.r}
+counts = read.csv("https://karengoncalves.github.io/Programming_classes/exampleData/Arabidopsis_counts.csv",
+                  header = T, row.names = 1)
+```
+
+This file has 12 columns (3 samples * 4 replicates) and 32833 rows (one per gene).
+
+Samples are aerial tissue of _Arabidopsis thaliana_ ecotype Col-0, harvested at 14 days post germination, with Basta (glyphosate) resistance gene and:
+
+- Control: GFP under the 35S promoter
+- Mlp37347 and Mlp124499: a candidate effector gene (*Mlp37347* or *Mlp124499* from the fungus *Melampsora larici-populina*) tagged with GFP under the 35S promoter
+
+
+## Create design table - part 1
+
+The design table explains to R what each column is: 
+
+- Control or treatment
+- Wild-type or mutant
+- From place X or place Y. 
+- Harvested at time 0, 1, 2, 3...
+
+Basically, you need first one column with the rows containing the same values as the column names of the count matrix.
+
+```{r}
+design_matrix = data.frame(Replicates = names(counts))
+```
+
+Then, you need one (or more) columns that indicate the sample that replicate comes from.
+
+## Create design table - part 2
+
+Note that you separate things in the columns, eg. you harvested different tissues at different time points, you would need a design table with three columns: `Replicates`, `tissue_type` and `Time_point`.
+
+In this case, the genotypes of the plants is part of their name (just remove the `_#` to get it):
+
+```{r}
+design_matrix = design_matrix %>%
+  mutate(Genotype = gsub("_\\d+$", "", 
+                         # replace the underscore and digits at the end of the text 
+                         # with nothing
+                         Replicates))
+
+head(design_matrix)
+```
+
+## Filtering read counts
+
+Not all genes in a genome will be expressed in a study (even one with many conditions and developmental stages), since some need very specific conditions to be expressed. Check for example the gene AT1G01046 (row 5)
+
+```{r}
+counts[5,]
+```
+
+:::{.panel-tabset}
+
+# Simple filter
+We can clean up the data, removing genes that are not expressed ever in our experiment. In theory, genes not expressed will have read `count == 0` in all samples.
+
+```{r}
+genes_not_expressed = rowSums(counts) == 0
+genes_not_expressed %>% which() %>% length()
+
+# We keep only rows that are FALSE in the variable genes_not_expressed
+counts_filtered = counts[ !genes_not_expressed, ]
+```
+
+# Complex filter
+
+Another way of filtering weakly expressed genes would be with the functions DAFS from the ["KarenGoncalves/CustomSelection"](https://github.com/KarenGoncalves/CustomSelection) package. 
+
+The function gives you the minimum expression level accepted per replicate (based on the sequencing depth), from there you can filter out the genes that are expressed at a level lower than that threshold.
+
+You will need the count matrix and a named vector with the length of each gene.
+
+```{.r}
+# The first thing you do convert the read counts to TPM (transcripts per million):
+tpm = Counts_to_tpm(counts=counts, featureLength=length)[[1]]
+
+# Then you calculate the minimum expression level
+cutv = DAFS(tpm=tpm) # value given as log2 TPM
+# Calculate the mean minimum expression level and convert it to TPM
+min_expr_level = mean(cutv) ^ 2 
+
+# Now to filter the weakly expressed genes,
+# Remove the ones that are expressed below the min_expr_level
+expressed_genes = apply(tpm, 1, mean) > min_expr_level
+counts_filtered = countsData[, expressed_genes]
+```
+
+:::
+
+## DESeq2 - main analysis
+
+Now that you have the filtered counts matrix and the design table, you can run DESeq2 by first creating the dataset object then running the function DESeq.
+
+Pay attention to always put your control samples at the beginning of the count matrix and the design table, as the first sample is taken as the control.
+
+```{r}
+deseq_dataset = DESeqDataSetFromMatrix(
+  countData = counts_filtered,
+  colData = design_matrix, # colData means data about the columns of the count matrix
+  design = ~Genotype # basically: expression in function of the genotype
+) %>% DESeq()
+```
+
+## DESeq2 - note on designs
+
+We used the design `~Genotype`, which is similar to taking the expression level for each gene and compare it between the different genotypes. 
+
+It takes the first level of the factor `Genotype` as the control. 
+
+Because of this, the comparisons we are able to make are only `Genotype_x` vs `Genotype_Control`, we cannot compare `Genotype_x` against `Genotype_y`
+
+Use `resultsNames` to see what comparisons are available
+
+```{r}
+resultsNames(deseq_dataset)
+```
+
+## DESeq2 - note (2) on designs
+
+If we want to make all possible pairwise comparisons, we need to add a `0` to the design function. 
+
+```{r}
+deseq_dataset2 = DESeqDataSetFromMatrix(
+  countData = counts_filtered,
+  colData = design_matrix, 
+  design = ~0 + Genotype # basically: expression in function of the genotype
+) %>% DESeq()
+
+resultsNames(deseq_dataset2) 
+```
+
+## DESeq2 - note (3) on designs 
+
+If your samples are defined by 2 factors, say `Genotype` and `Age` (both present int the `design_matrix` data.frame), you can set the design to either:
+
+- `~Genotype + Age` - you will be able to compare `genotype1` against `genotype2`, and `age1` against `age2`, but not `genotype1_age1` against `genotype1_age2`
+
+. . .
+
+- `~Genotype + Age + Genotype:Age` - models the differences:
+  - Between genotypes at the first `Age` value
+  - Between different time points (grouping all genotypes)
+  - Genotype-specific across the levels of `Age`.
+
+## DESeq2 - note (4) on designs
+
+If you have a time series experiment, then you need to add a "reduced" design in the `DESeq` function: 
+  
+```{.r}
+deseq_dataset = DESeqDataSetFromMatrix(
+  countData = counts_filtered,
+  colData = design_matrix, 
+  design = ~Genotype + Age + Genotype:Age
+) %>% 
+  DESeq(test="LRT", # likelyhood ratio test
+        reduced = ~ Genotype + Age)
+```
+
+## Sample homogeneity 
+
+We can check the similarity of the samples and between replicates by performing one of 2 analyses: Principal Component Analysis (PCA) or Cluster Analysis. 
+
+But first, we need to get the normalized data by performing a _regularized log_ transformation
+
+```{r}
+transformed_counts = 
+  rlogTransformation(deseq_dataset)
+```
+
+The normalized data is stored in `assays(transformed_counts)[[1]]`, but the PCA function from DESeq2 uses the whole `rlogTransformation` result
+
+## Sample homogeneity - PCA
+
+We can either use `prcomp` or `DESeq2::plotPCA` for the PCA analysis. The normalized data is stored in `assays(transformed_counts)[[1]]`, which is what we'd use for `prcomp`, but `DESeq2::plotPCA` uses the whole `rlogTransformation` result.
+
+- `intgroup` should the column from design matrix used to color the replicate points in the plot
+
+```{r}
+pca_plot <- 
+  plotPCA(transformed_counts,
+          intgroup = "Genotype") + 
+  ggtitle("Most variable genes (500)") +
+  theme_classic()
+```
+
+By default, plotPCA uses only the most variable genes to calculate PCA, if we want to use all genes, we need to change the `ntop` value
+
+```{r}
+pca_plot_all <-
+  plotPCA(transformed_counts,
+          intgroup = "Genotype",
+          ntop = nrow(counts_filtered)) +
+  ggtitle("All genes") +
+  theme_classic()
+
+```
+
+```{r}
+library(ggpubr)
+ggarrange(pca_plot, pca_plot_all, ncol=2)
+```
+
+## Sample homogeneity - Clustering and heatmap
+
+Let's calculate the difference between the samples using Euclidean distance and plot it with a heatmap and dendrogram
+
+:::{.callout-note}
+`t()` is the transpose function: shifts rows to columns and columns to rows.
+If we use the original data, we calculate the difference between genes.
+:::
+
+```{r}
+rlog_counts = assays(transformed_counts)[[1]]
+
+distance_samples = 
+  rlog_counts %>% t() %>%
+  dist(method = "euclidean") 
+
+dendrogram = 
+  hclust(distance_samples) %>%
+  as.dendrogram()
+
+heatmap(
+  x = distance_samples %>% as.matrix(),
+  Rowv=dendrogram,
+  Colv="Rowv")
+```
+
+
+## DESeq2 results
+
+Now the main part of the analysis is done, we use the function `results` to access the results and inform the type of stats you want performed. 
+
+```{r}
+resultsNames(deseq_dataset)
+name_result = resultsNames(deseq_dataset)
+```
+
+By setting `name` below, we indicate which comparison we wish to analyse, the the `pAdjustMethod` is the way we wish to correct the multiple tests DESeq will do (one per gene). 
+
+The result table is saved in a list, so we need to transform it to table (or tibble from tidyverse).
+
+```{r}
+# Remove the first element of name_result, since it is just the intercept
+
+results_DESeq2 <- 
+  lapply(name_result[-1], \(comparison) {
+    results(deseq_dataset, 
+            name = comparison,
+            pAdjustMethod = "BH")@listData %>%
+      as_tibble() %>%
+      mutate(
+        # We need to add the gene names
+        Gene_name = rownames(counts_filtered),
+        # We classify the genes by deregulation
+        State = case_when(
+          log2FoldChange < 2 ~ "Down-regulated",
+          log2FoldChange > 2 ~ "Up-regulated",
+          .default = "equal"),
+        # Indicate from which comparison the data comes from
+        Contrast = comparison
+      )
+  }) %>%
+  list_rbind() 
+  
+head(results_DESeq2)
+```
+
+## Simple summary
+
+- How many genes are deregulated in each comparison?
+
+```{r}
+results_DESeq2  %>%
+  filter(padj < 0.01) %>%
+  group_by(Contrast) %>%
+  dplyr::count()
+```
+
+. . .
+
+- How many genes are up and how many down-regulated?
+
+```{r}
+results_DESeq2 %>%
+  filter(padj < 0.01) %>%
+  group_by(Contrast, State) %>%
+  dplyr::count()
+```
+
+
+## Resources
+
+- ARTICLES
+    - [ideal: an R/Bioconductor package for interactive differential expression analysis](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-020-03819-5)
+- TUTORIALS
+    - [Angus - DEA and visualization](https://angus.readthedocs.io/en/2019/diff-ex-and-viz.html)
+    - [COMBINE Australia - RNASeq](https://combine-australia.github.io/RNAseq-R/06-rnaseq-day1.html)
+    - [Griffith lab - DEA with DESeq2](https://genviz.org/module-04-expression/0004/02/01/DifferentialExpression/)
+    - [Love, Anders and Huber - DESeq2](https://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html)
+    

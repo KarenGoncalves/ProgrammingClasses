@@ -1,0 +1,62 @@
+---
+title: "Excel files in R"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "4 November 2023"
+categories:
+  - "R intermediary"
+  - Spreadsheets
+  - "Excel import and export"
+  - Input files
+format: html
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+## Reading and writing spreadsheets
+
+If you have only one sheet in a spreadsheet, the easiest thing to do is to save it as `.csv` or `.txt` and open it with `read.XXXX` or `read_XXXX`. Spreadsheets use more space and take longer to be opened.
+
+As for writing, if it is only one table, you can save it as `.csv` or `.txt` with `write.csv` or `write.table` and then open with a spreadsheet reader (ie. excel). 
+
+If you prefer working with spreadsheets, you can read them in R with the `readxl` package and you can write spreadsheets with the package `openxlsx`.
+
+### Read excel spreadsheets
+
+`readxl` package - Part of the `tidyverse` package
+
+Allows you to:
+
+- Check the names of the sheets of an excel file: `excel_sheets(MY_EXCEL_FILE)`
+- Read sheets of an excel file as tibbles (a type of data.frame): 
+	- `read_excel(file = MY_EXCEL_FILE, sheet = MY_SHEET)`
+	- You can specify what defines NA: `read_excel(file = MY_EXCEL_FILE, sheet = MY_SHEET, na = ".")`
+	- Instead of `header = T`, you use `col_names = T`
+	- You can specify the number of rows to skip in the beginning with `skip = N`
+	- You can specify the number of rows to read with `n_max = N`
+	- You can specify which cols and rows to read with `range = "H40:T80"`
+		- If `range` is specified, `skip` and `n_max` are ignored
+		- You can include the name of the sheet: `range = "MY_SHEET!H40:T80"`
+			- <span style="color: red">SHEET</span><span style="color: cyan"> EXCLAMATION_POINT </span><span style="color: yellow">CELL_RANGE
+
+### Write spreadsheets
+
+If you have many tables you want to export as different sheets in the same spreadsheet, you can put them all in a single list then 
+
+```{r}
+library(tidyverse)
+library(openxlsx)
+outFile = "iris.xlsx"
+# I split the data.frame iris into 3, one per species, so it is easy to understand the output
+species_iris = unique(iris$Species)
+my_tables = 
+	sapply(species_iris, simplify = F, \(x) {
+		iris %>% filter(Species == x)
+	})
+
+write.xlsx(my_tables, 
+	   file = outFile)
+```
+

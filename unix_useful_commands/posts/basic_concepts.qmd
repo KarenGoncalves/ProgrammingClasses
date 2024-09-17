@@ -1,0 +1,100 @@
+---
+title: "Basic concepts"
+description: "Definitions of absolute and relative paths, session, scritps, quotes, and commands"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "10 January 2023"
+categories:
+  - "Unix basics"
+  - Concepts
+  - Paths
+  - Comments
+  - Variables
+format: html
+---
+
+## Concepts
+
+- Paths
+  - Absolute path: includes the root (starts with a "/")
+  - Relative path: is dependent on your location in the computer. For example, if the file or folder to which you refer is present in the your current folder, you need simply write its name.
+- Session: each time you open a command line window or connect to the server
+- Commands: orders given to the server, ends when you press enter/return. Exceptions:
+  - `\`: escape character. If you add a new line (press `enter` or `return`) right after a `\`, it will be read as the same line
+  - Some commands use quotes (either `'` or `"`), and normally if you start a new line without closing the quote, it will be considered part of the same command
+  - `;` has the same effect as a new line. So you can write multiple commands in the same line by separating them with a `;`
+- Script: a list of commands to be executed by the computer
+- Comments: explanations added to scripts to help understanding it or commands one does not desire to execute, but does not want to lose it either as they may be useful later. 
+  - Anything in front of a `#` is a comment: a whole line or part of a line after a command.
+  - Note that if you use `\` to break a command into multiple lines, you should not use the `#` after the `\` as it would ignore the `#` and try to execute your comment.
+  - There is a convention for how to use comments:
+  
+:::{.panel-tabset}
+# Spliting script into sections
+
+You can split your script into sections that do different things. To later know where each part starts and ends, you can insert section titles using three lines of `#`, with the middle one containing title of a section. 
+
+You normally write the section title with a `#`, space, text, space `#`. Then you add as many `#`s in the lines above and below the title as needed so that the three lines are the same length.
+
+```{.bash}
+#################
+# Section title #
+#################
+```
+
+# Comenting code
+
+To prevent a code from being executed, add a `#` without a space between the code and the `#`
+
+`#echo file.txt`
+
+# Writing explanation
+
+Whether in the beginning of the line or the middle of it, separate the explanation text from the `#` with a space
+
+```{.bash}
+# This is a comment to explain that echo just repeats the text in front of it
+echo file.txt # echo is the same as "repeat"
+```
+:::
+ 
+
+## Variables
+
+### Definition 
+
+A value that can be accessed as `$XXX`, `"$XXX"` or `${XXX}`, where `XXX` is any name given to the variable. 
+
+### How to create one
+
+Below, we create the variable `filename` and use the command `echo` to print the value stored in `$filename`. 
+
+```{.bash}
+filename=/home/c/Users/username/Desktop/file.txt
+echo $filename
+# If the file that `$filename` refers to is a text, we can print the beginning of it with 
+```
+
+### Why use variables
+
+- You use repeatedly a file in a script, but its name is too long, so you you store the file name into a variable and just use the shorter variable name instead
+- You are using a loop to avoid repeating yourself:
+
+```{.bash}
+echo file.txt
+echo file1.txt
+echo myFile.txt
+
+# The code below does exactly the same as the 3 echo above
+for file in file.txt file1.txt myFile.txt; do echo $file; done
+```
+
+There are other more complex reasons to use variables, related to scripts.
+
+## Clean the screen: `clear`
+
+Will clear you screen, so you will not be able to see the previous commands by looking up or scrolling. You can still use the up and down arrows to look at the commands you have used in the session.
+
+## See commands used previously : `history`
+
+Shows the list of commands you have used in the computer with the date and time of use. Does not contain ALL the commands you have ever used, since old lines are deleted. So if you think you may need to see the command again, copy it to a file.

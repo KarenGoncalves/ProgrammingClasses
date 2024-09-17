@@ -1,0 +1,413 @@
+---
+title: "Get read counts"
+author: "Karen Cristine Goncalves, Ph.D."
+description: "4th R class - transcriptomics sessions"
+fontsize: 1.25em
+linkcolor: grey
+callout-appearance: simple
+categories:
+  - R advanced
+  - "Read alignment"
+  - Omics
+  - Transcriptomics
+format: 
+  revealjs:
+    transition: none
+    theme: dark
+    scrollable: true
+date: "16 February 2024"
+incremental: false
+echo: true
+warning: false
+eval: true
+draft: false
+---
+
+## Data processing before R
+
+Short read sequencing transcriptomic data (in the form of fastq files, sometimes compressed as fastq.gz) pass through the some steps before we can proceed to analysis shown in this class. 
+
+The pre-processing is typically done in servers (unix/bash language) and includes:
+
+1. Quality assessment and filtering
+2. IN THE ABSENCE OF A REFERENCE: Transcriptome assembly
+3. Read alignment/mapping
+4. Sorting and indexing
+
+<p style="color: red">**The things shown in this class are for alignments onto reference genomes.**</p>
+
+## Things to know 
+
+- Keep track how many reads passed the quality filtering and how many were mapped.
+
+- In the case of a new assembly, you can follow steps on [TrinityRNASeq wiki](https://github.com/trinityrnaseq/trinityrnaseq/wiki/Trinity-Transcript-Quantification) for transcript quantification.
+
+- Is it possible to do all the processing in R? YES
+    - Is it worth it? ...
+    
+      >- What you will do in R is use it to connect to another program that will do the job. So you end up using more memory (computer gets slower, takes a lot of time).
+      >- Some programs are not available for windows, so you may install all the packages necessary just to learn that you cannot use them.
+
+  
+## Data processing before R - detail
+
+1. Quality assessment and filtering:
+    - [fastp](https://github.com/OpenGene/fastp) (last update: 2023); [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) (last update: 2023) followed by [trimmomatic](https://github.com/usadellab/Trimmomatic) (last update: 2021)
+2. Creation of a reference transcriptome: 
+    - [trinity](https://github.com/trinityrnaseq/trinityrnaseq) (last update: 2023); [SOAPdenovo-Trans](https://github.com/aquaskyline/SOAPdenovo-Trans) (last update: 2022); [Trans-ABySS](https://www.bcgsc.ca/resources/software/trans-abyss) (last update: 2018); [Oases](https://github.com/dzerbino/oases) (last update: 2015); [Velvet](https://github.com/dzerbino/velvet) (last update: 2014)
+3. Read alignment/mapping:
+    - Alignment - finds the exact origin of the reads and their differences compared to the reference (like blasting each read against a genome or transcriptome). It is slow - each alignment may take hours depending on the amount of data and size of the reference. These export SAM or BAM files, requiring indexing (step 4):
+        - [bowtie2](https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) (last update: 2024); [STAR](https://github.com/alexdobin/STAR) (last update: 2023); [HISAT2](https://daehwankimlab.github.io/hisat2/) (last update: 2020); [bwa](https://bio-bwa.sourceforge.net/) (last update: 2017); [TOPHAT2](https://ccb.jhu.edu/software/tophat/index.shtml) (last update: 2016)
+    - Pseudoalignment/Mapping - hyper fast - each alignment takes minutes. They only give the genomic/transcriptomic origin of each read. These export the read count tables directly:
+        - [Salmon](https://salmon.readthedocs.io/en/latest/) (last update: 2023); [Kallisto](https://pachterlab.github.io/kallisto/about) (last update: 2019)
+4. If the aligner provides the result as SAM or not sorted by genomic coordinates, use `samtools view` to sort and export into sorted BAM. Then use `samtools index` to get the `bai` files.
+    - In the end, you should have 2 files per sample/replicate: `sampleX_repY_Aligned.sortedByCoord.out.bam` and `sampleX_repY_Aligned.sortedByCoord.out.bam.bai`
+
+:::{.callout-info}
+
+Note that if you only want to perform differential expression analysis, GO term enrichment, etc, you do not need to perform read alignment, just mapping suffices.
+
+:::
+
+## Data processing before R - code example
+  
+The code below executes the 2 commands of the program STAR: the creation of the index of the genome and the alignment.
+
+The texts within `${}` are variable that should be created before hand. This `${r1/_R1.fastq}` means "remove _R1.fastq" from `${r1}` (like a `gsub`)
+
+```{.bash}
+# Note that the adapter sequences depend on the type of sequencer
+fastp -i ${raw_R1} -I ${raw_R2}\
+ -o ${r1} -O ${r2}\
+ --qualified_quality_phred 20\
+ --unqualified_percent_limit 30\
+ --adapter_sequence=TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG\
+ --adapter_sequence_r2=GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG\
+ --cut_front --cut_front_window_size 3\
+ --cut_right --cut_right_window_size 4\
+ --cut_right_mean_quality 15\
+ --length_required 25\
+ --html $DIR/fastpReports/${r1/_R1.fastq}.html\
+ --thread 8 
+
+# Let's decide if we want to map or align
+MODE="align"
+
+if [[ $MODE == "align" ]]; then
+  STAR\
+   --runThreadN ${NCPUS}\
+   --runMode genomeGenerate\
+   --genomeDir ${genomeIdxDIR}\
+   --genomeFastaFiles ${genomeFastaFiles}\
+   --sjdbGTFfile ${genomeGTFFile}\
+   --sjdbOverhang ${readLength}
+   
+  STAR --genomeDir ${indexDIR}/\
+   --runThreadN ${NCPUS} \
+   --readFilesIn ${DIR}/clean_reads/${r1} ${DIR}/clean_reads/${r2} \
+   --outFileNamePrefix ${DIR}/alignments/${r1/_R1.fastq}_\
+   --outSAMtype BAM SortedByCoordinate \
+   --outSAMunmapped Within
+
+else
+  kallisto index -i ${genomeIdxDIR} ${genomeFastaFiles}
+  kallisto quant -i ${genomeIdxDIR}\
+   -o ${DIR}/alignments/${r1/_R1.fastq}\
+    ${DIR}/clean_reads/${r1}\
+    ${DIR}/clean_reads/${r2}
+fi
+
+```
+
+## Installing the packages
+
+If you use the a reference genome for which the annotation is available in Ensembl, you can create your transcript (or 5'/3'-UTR) database while you are waiting for the alignment of your reads.
+
+For this, we need the packages "GenomicFeatures", "GenomicAlignments", "biomaRt", "tidyverse".
+
+```{r, results='hide'}
+bioconductor_pkgs = c("GenomicFeatures", "GenomicAlignments", "biomaRt", "Rsamtools")
+cran_pkgs = "tidyverse"
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+    cran_packages = cran_pkgs,
+    bioconductor_packages = bioconductor_pkgs
+)
+```
+
+
+## Setting up the scene
+
+There are several biomarts (databases) stored in different Ensembl pages.
+
+:::{.panel-tabset}
+# biomarts
+
+:::{.callout-not}
+There is a bacteria Ensembl, but there is not a biomart for it
+:::
+
+- [Animals](https://ensembl.org)
+  - host: `"https://ensembl.org"`
+  - mart: `"ENSEMBL_MART_ENSEMBL"` (currently on version 111)
+- [Plants](https://plants.ensembl.org)
+  - host: `"https://plants.ensembl.org"`
+  - mart: `"plants_mart"`  (currently on version 58)
+- [Fungi](https://fungi.ensembl.org)
+  - host: `"https://fungi.ensembl.org"`
+  - mart: `"fungi_mart"`  (currently on version 58)
+- [Protists](https://protists.ensembl.org)
+  - host: `"https://protists.ensembl.org"`
+  - mart: `"protists_mart"` (currently on version 58)
+
+There are other biomarts in the each Ensembl. You can check their names and versions with
+
+```{r}
+host = "https://plants.ensembl.org"
+listMarts(host = host)
+```
+
+# Selecting a biomart dataset
+
+Next thing you need is the name of the dataset. 
+
+You can check the ones available by running:
+
+```{r, results='hide'}
+mart = useMart(host = host, biomart = "plants_mart")
+listDatasets(mart) # this is a table, so we can filter it
+```
+
+
+```{r}
+# If I am working with Arabidopsis thaliana, I can search for it with filter
+listDatasets(mart) %>%
+  filter(grepl("Arabidopsis thaliana", description))
+
+# Now I know I have to use the dataset "athaliana_eg_gene"
+```
+
+# Creating the transcript database
+
+Now we have all the data we need, we set our variables: 
+
+```{.r}
+# Edit the following based on what you need
+biomart = "plants_mart"
+dataset = "athaliana_eg_gene"
+prefix = "ensembl_"
+host = "https://plants.ensembl.org"
+
+# The result will be saved as a .RData object, so we do not recalculate this every time.
+dir = "./" # current directory
+outputPath = paste0(dir, "Arabidopsis_TxDb.RData")
+```
+
+Then we create a Transcript DataBase (txdb) from Biomart:
+
+```{.r}
+# Following takes a while (a few minutes), so it is better to calculate this once than export the result
+TxDb <- makeTxDbFromBiomart(biomart = biomart,
+                            dataset = dataset,
+                            id_prefix = prefix,
+                            host = host)
+
+# TxDb is a weird type of data, difficult to access, so we get the information on the transcripts with the function transcriptsBy
+tx <- transcriptsBy(TxDb,"gene")
+
+# Then we save the two databases into the Rdata object.
+save(TxDb, tx, file = outputPath)
+
+```
+
+# Whole script
+
+If you want to use the script we worked on here, just copy it below and change the section "VARIABLES" to fit your needs
+
+```{.r}
+###########################################
+################ VARIABLES ################
+###########################################
+species = "Athaliana"
+biomart = "plants_mart"
+dataset = "athaliana_eg_gene"
+prefix = "ensembl_"
+host = "https://plants.ensembl.org"
+dir = "./output_tables/" 
+outputPath = paste0(dir, species, "_TxDb.RData")
+
+###########################################
+################ Packages #################
+###########################################
+
+bioconductor_pkgs = c("GenomicFeatures", "GenomicAlignments", "biomaRt")
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+    bioconductor_packages = bioconductor_pkgs
+)
+
+###########################################
+############# Create databse ##############
+###########################################
+
+TxDb <- makeTxDbFromBiomart(biomart = biomart,
+                            dataset = dataset,
+                            id_prefix = prefix,
+                            host = host)
+tx <- transcriptsBy(TxDb,"gene")
+
+save(TxDb, tx, file = outputPath)
+```
+
+:::
+
+## Getting the input files
+
+Now that we have the `.bam`, `.bam.bai` and the transcript database RData, count the number of reads aligned to each gene.
+
+For the example here, we will use these files (reads from _Arabidopsis thaliana_ Col-0 GFP plants):
+
+```{.r}
+
+sapply(c("output_tables/counts", "output_tables/alignments"),
+       dir.create)
+site = "https://karengoncalves.github.io/Programming_classes/exampleData/"
+sapply(c("subset_Col_0_GFP_1_Aligned.sortedByCoord.out.bam",
+          "subset_Col_0_GFP_1_Aligned.sortedByCoord.out.bam.bai"),
+       \(x) download.file(
+         url = paste0(site, x), 
+         destfile = paste0("output_tables/alignments", x))
+)    
+
+```
+
+
+## Get the counts - prepare the variables
+
+Now that we have the files, we need to inform R where they are stored and where to put the results, in other words, prepare the variables.
+
+:::{.callout-note}
+
+- The basename here is the name of the sample_rep, without the suffix added by the aligner or samtools nor folder names (these are removed with the function `basename`)
+- For the example, we will use a single sample, but we will use a loop so the final script can be used fo multiple samples easily
+
+:::
+
+```{.r}
+bamFiles <- paste0("/output_tables/alignments/", 
+                   list.files(path = "/output_tables/alignments/")
+)
+  
+baiFiles <- paste0(bamFiles, ".bai")
+baseNames <- gsub("_Aligned.sortedByCoord.out.bam", "",
+                  basename(bamFiles))
+TxDbPath <- "./output_tables/Arabidopsis_TxDb.RData"
+load(TxDbPath)
+outPutDir <- "./output_tables/"
+
+# Now we load the RData
+# This line tells R where the alignment files for the sample are and how much of them to read at a time
+bfl <- BamFileList(bamFiles, 
+                   baiFiles, 
+                   yieldSize=200000)
+```
+
+
+```{r, echo = FALSE, include=FALSE, results='hide'}
+inDir = "../../exampleData/"
+bamFiles <- paste0(inDir, 
+                   list.files(path = inDir,
+                              pattern = ".bam$")
+)
+  
+baiFiles <- paste0(bamFiles, ".bai")
+baseNames <- gsub("_Aligned.sortedByCoord.out.bam", "",
+                  basename(bamFiles))
+TxDbPath <- paste0(inDir, "Arabidopsis_TxDb.RData")
+outPutDir <- inDir
+load(TxDbPath)
+# Now we load the RData
+# This line tells R where the alignment files for the sample are and how much of them to read at a time
+bfl <- BamFileList(bamFiles, 
+                   baiFiles, 
+                   yieldSize=200000)
+```
+
+## Get the counts - overlaps
+
+Summarize overlaps
+
+:::{.panel-tabset}
+
+# Code 
+
+The code below uses `summarizedOverlaps` to count the number of alignments (`bfl` object) falling in each transcript (`tx` object, transcript database)
+
+```{r}
+overlaps <- summarizeOverlaps(
+  features = tx, # genes' coordinates
+  reads = bfl, # bam and bai files
+  mode = "Union", 
+  # mode can be also "IntersectStrict" or "IntersectNotEmpty"
+  singleEnd = F, fragments = T, 
+  ignore.strand = T
+  )
+```
+
+# Explanation
+
+In this case, we have paired-end reads (singleEnd = F, fragments = T), we ignore the strand information and we use the [union mode](https://htseq.readthedocs.io/en/release_0.11.1/count.html):
+
+![](https://htseq.readthedocs.io/en/release_0.11.1/_images/count_modes.png)
+
+
+:::{.callout-note}
+All the bam/bai files are analysed here. So if you have many, R will take very long to run the code. You can increase or decrease the `yieldSize` in the function `BamFileList` (previous slide) to use more/less memory and increase/decrease the speed of the code.
+:::
+
+# Saving overlaps result
+
+We save this result, so if there is an issue with the rest of the code, the heavy part of the program gets saved before R stops.
+
+```{.r}
+# 
+save(overlaps, file = paste0(outPutDir, "overlaps.RData"))
+```
+
+:::
+
+## Get counts - export table
+
+Now that we have the overlaps, we can get the counts.
+
+```{r}
+# Then we extract the counts slot, transform into a data.frame and export it as a csv file.
+countAssays = assays(overlaps)$counts  %>% as.data.frame()
+names(countAssays) <- baseNames
+
+write_csv(x = countAssays, 
+          file = paste0(outPutDir, "counts.csv"), 
+          col_names = T,
+          quote = "none")
+```
+
+We can check the number of reads/fragments that passed the criteria to be considered mapped using `colSums`. By using this function, we get the result for all datasets included in the table, without needing to explicitly type any specific sample name.
+
+```{r}
+colSums(countAssays)
+```
+
+
+## More tutorials and resources
+
+- ARTICLE: [a survey of best practices for RNA-seq data analysis](https://doi.org/10.1186/s13059-016-0881-8)
+- [Introduction to transcript quantification with Salmon](https://bioinformatics-core-shared-training.github.io/Bulk_RNAseq_Course_Nov23/Bulk_RNAseq_Course_Base/Markdowns/03_Quantification_with_Salmon_introduction.html)
+- [End-to-end analysis - RNAseq](https://www.alzheimersworkbench.ucsd.edu/EndToEndAnalysis_RNASeq.html)
+- [RNAseq analysis in R - University of Cambridge](https://bioinformatics-core-shared-training.github.io/RNAseq-R/)
+- [RNAseq-R](https://sbc.shef.ac.uk/RNAseq-R/)
+
+

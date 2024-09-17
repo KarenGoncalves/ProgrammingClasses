@@ -1,0 +1,30 @@
+project:
+  type: website
+  output-dir: docs
+  resources:
+    - "bioinformatics_6281473.png"
+    - "media/*mp4"
+    - "media/*png"
+    - "media/*jpg"
+    - "scripts_for_class/*"
+website:
+  favicon: "bioinformatics_6281473.png"
+  title: "Programming classes"
+  back-to-top-navigation: true
+  reader-mode: false
+  page-footer: "Copyright 2023, Ph.D. Karen Cristine Goncalves"
+  navbar:
+    background: primary
+    left:
+      - href: unix_useful_commands/index.qmd
+        text: "Unix - useful commands"
+      - href: useful_R_commands/index.qmd
+        text: "R - useful commands"
+    right:
+      - href: https://karengoncalves.github.io/Karen/
+        text: Karen Goncalves
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly

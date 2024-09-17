@@ -1,0 +1,76 @@
+---
+title: "Open files"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "3 November 2023"
+categories:
+  - "R basics"
+  - Input files
+format: html
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+## Basic `read.XXXX` and tidyverse `read_XXXX`
+
+### `read.XXX`
+
+These functions are available without loading any package
+
+```{r, echo=F, message=F, results='asis'}
+library(tidyverse, quietly = T)
+
+cheat_sheet = data.frame(
+	Function = c('Function', 'read.csv', 'read.csv2', 'read.delim', 'read.delim2'),
+	Column_separation = c('Column separation', '","', '";"', '"\\t" (tab)', '"\\t" (tab)'),
+	Decimal_separation = c('Decimal separation', '"."', '","', '"."', '","')
+)
+caption = "Function names and their assumptions"
+colNames = cheat_sheet[1, ]
+
+cheat_sheet$Column_separation[2:nrow(cheat_sheet)] = 
+	paste0("sep = ", cheat_sheet$Column_separation[2:nrow(cheat_sheet)])
+cheat_sheet$Decimal_separation[2:nrow(cheat_sheet)] = 
+	paste0("dec = ", cheat_sheet$Decimal_separation[2:nrow(cheat_sheet)])
+
+cheat_sheet[-1,] %>%
+	kableExtra::kable(
+		format = "html", 
+		col.names = colNames, row.names = F) %>% 
+	kableExtra::kable_material_dark(lightable_options = "hover", html_font = "arial-narrow")
+
+```
+
+### `read_XXX`
+
+These functions are available after loading `tidyverse`. They are the equivalent of the `read.XXXX`, but are faster and so better for big datasets.
+
+Note that they produce `tibbles`, not `data.frames`. Though similar, `tibbles` do not have row names. If your first column has no name because it contains row names, R will replace the empty cell with `...1`.
+
+You use `col_names` to indicate if there are column names or to give a vector with the column names.
+
+```{r, echo=F, message=F, results='asis'}
+library(tidyverse, quietly = T)
+
+cheat_sheet = data.frame(
+	Function = c('Function', 'read_csv', 'read_csv2', 'read_delim', 'read_delim2'),
+	Column_separation = c('Column separation', '","', '";"', '"\\t" (tab)', '"\\t" (tab)'),
+	Decimal_separation = c('Decimal separation', '"."', '","', '"."', '","')
+)
+caption = "Function names and their assumptions."
+colNames = cheat_sheet[1, ]
+
+cheat_sheet$Column_separation[2:nrow(cheat_sheet)] = 
+	paste0("sep = ", cheat_sheet$Column_separation[2:nrow(cheat_sheet)])
+cheat_sheet$Decimal_separation[2:nrow(cheat_sheet)] = 
+	paste0("dec = ", cheat_sheet$Decimal_separation[2:nrow(cheat_sheet)])
+
+cheat_sheet[-1,] %>%
+	kableExtra::kable(
+		format = "html", 
+		col.names = colNames, row.names = F) %>% 
+	kableExtra::kable_material_dark(lightable_options = "hover", html_font = "arial-narrow")
+
+```

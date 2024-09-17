@@ -1,0 +1,29 @@
+---
+title: "Getting help"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+date: "1 October 2023"
+format: html
+categories:
+  - "R basics"
+  - Help
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+## Using `help` and `?function_name` 
+
+
+You can get help about a package or function with the function `help()`. Just put the quoted name of the package/function inside the parenthesis.
+
+You can also just use a question mark in front of the package/function name (no quote needed in this case)
+
+``` {.r}
+help("grep")
+?grepl
+
+help("stats")
+?base
+```

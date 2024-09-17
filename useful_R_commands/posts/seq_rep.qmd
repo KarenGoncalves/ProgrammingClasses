@@ -1,0 +1,58 @@
+---
+title: "Sequences and repetitions"
+author: "Karen C. Goncalves dos Santos"
+callout-appearance: simple
+categories:
+  - "R basics"
+  - Numbers
+date: "3 October 2023"
+format: html
+---
+
+```{r, results='asis', echo = F}
+source('styles.R')
+```
+
+
+## `seq()` and `rep` fucntions
+
+### `seq`
+
+Use the command `seq` to get a sequence of numbers. You can specify the interval between every number shown. The function is writen as:
+`seq(FROM, TO, INTERVAL)`
+
+```{r}
+seq(1, 2, 0.1)
+
+```
+
+If you want to see every integer between two numbers you can use `:` or you can omit the interval in the `seq` command.
+
+```{r}
+# Get very integer between 0 and 10
+seq(0, 10)
+0:10
+
+# Get every integer between 0 and 10 in decreasing order
+seq(10, 0)
+10:0
+```
+
+### `rep`
+
+Syntax: `rep(X, TIMES, EACH)`
+
+- X - what you want to repeat: vector of characters, numbers or logical (T/F)
+- TIMES: repeat how many times
+- EACH: if there is more than one element in WHAT, you repeat the first, then the second...
+
+```{r}
+# repeat X (1 in this case) 4 times
+rep(1, 4)
+
+# repeat X (vector c(1, 2)) 4 times
+rep(c(1, 2), 4)
+
+# repeat the elements of the input 4 times each
+rep(c(1, 2), each = 4)
+```

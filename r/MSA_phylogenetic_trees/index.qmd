@@ -1,0 +1,594 @@
+---
+title: "Multiple sequence alignment and phylogenetic trees"
+author: "Karen Cristine Goncalves, Ph.D."
+description: "3rd R class"
+fontsize: 1.25em
+linkcolor: grey
+callout-appearance: simple
+categories:
+  - R advanced
+  - Bioinformatics
+format: 
+  revealjs:
+    transition: none
+    theme: dark
+    scrollable: true
+date: "January 2024"
+incremental: false
+echo: true
+warning: false
+eval: true
+---
+
+## Packages
+
+Before, we installed packages with the code below
+
+```{.r}
+pkgs = c("rmarkdown", "tidyverse", "venn")
+pkgs.To.Install = which(! pkgs %in% installed.packages())
+if (length(pkgs.To.Install) != 0) install.packages(pkgs[pkgs.To.Install])
+for (curPkg in pkgs) library(curPkg, character.only = T) 
+```
+
+However, most packages for bioinformatics are not downloadable with a simple `install.packages`, as they are not stored in [CRAN](https://cran.r-project.org/), the basic website for R packages.
+
+Instead, they are in [Bioconductor](https://www.bioconductor.org/), and some are in specific github repositories (think about the [R_class_examples](https://github.com/KarenGoncalves/R_class_examples)).
+
+## Installing packages from other sources
+
+:::{.panel-tabset collapse="true"}
+
+# Bioconductor packages
+
+For these, we use the package BiocManager.
+
+```{.r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+pkgs.bioconductor = c("msa", "Biostrings")
+pkgs.To.Install = which(! pkgs.bioconductor %in% installed.packages())
+if (length(pkgs.To.Install) != 0) {
+	BiocManager::install(pkgs.bioconductor[pkgs.To.Install])	
+}
+```
+
+:::{.callout-tip}
+In `BiocManager::install`, the `::` indicates that the function `install` comes from the package `BiocManager`.
+
+So even if there is another package with the same function, R will know which one to use.
+:::
+
+# Github packages
+
+:::{.callout-tip}
+
+Github is a website that has folders for each user, and each user may have multiple folders: one for each project. Example, in:
+
+- https://github.com/KarenGoncalves/R_class_examples
+	- `KarenGoncalves/` is my folder in the website, in there I have over 20 folders, one for each project.
+	- R_class_examples is one of them.
+:::
+
+```{.r}
+if (! "devtools" %in% installed.packages()) {
+	install.packages("devtools")
+}
+
+repos.github = c("YuLab-SMU/ggmsa")
+pkgs.github = gsub(".+/", "", repos.github) # remove the folder name
+pkgs.To.Install = which(! pkgs.github %in% installed.packages())
+
+if (length(pkgs.To.Install) != 0) {
+	# To install the package, we need the folder + package name
+	devtools::install_github(repos.github[pkgs.To.Install])	
+}
+```
+
+# Simplified install
+
+Copy the code below to load all the necessary packages. 
+
+In future, just come back here, copy the code below and change the list of packages.
+
+```{r}
+#| output: false
+#| warning: false
+
+devtools::source_gist("https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978")
+
+install_from_dif_sources(
+	cran_packages = c("tidyverse", "tinytex", "patchwork"),
+	bioconductor_packages = c("Biostrings", "msa", "treeio", "ggtree", "ape", "seqinr", "phangorn"),
+	github_packages = "YuLab-SMU/ggmsa"
+)
+```
+
+
+:::{.callout-tip}
+The link [https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978](https://gist.github.com/KarenGoncalves/0db105bceff4ff69547ee25460dda978) contains the R script that creates functions to load the packages from different sources: CRAN (the typical source), Bioconductor and github.
+
+So you just need to give the link to the function `devtools::source_gist()` and then you can use the function `install_from_dif_sources`
+:::
+
+:::
+
+## A note about classes
+
+R objects (the things in the environment tab) belong to different classes. The basic ones you already know:
+
+- vectors have one dimension and data inside has to be all the same type: character vector; numeric vector; factor vector
+- matrices: vectors, but with columns and rows
+- data.frames: table made of vectors (columns) of the same size
+- lists: anything goes! If the objects stored in it have names, you can access them like `list$object_name`, as if the object inside was a column of a table
+
+. . .
+
+To check the class of an object you can use:
+
+```{.r}
+class(object)
+```
+
+. . .
+
+A package may create it's own object class. Sometimes you need to convert an object from one class to another, like:
+```{r}
+(numeric_vector <- 1:10)
+class(numeric_vector)
+
+(character_vector <- as.character(numeric_vector)) # change class
+class(character_vector)
+```
+
+. . .
+
+So, just remember that, if a function starts with `as.`, it is changing the class of the object.
+
+## Reading and writing fasta files
+
+If you have protein sequences in a fasta file, copy it to your `inputs` folder, else use the following:  [Reductases.fasta](https://karengoncalves.github.io/Programming_classes/exampleData/Reductases.fasta)
+
+```{r}
+# To open a fasta file with multiple sequences, use the function readDNAStringSet() or readAAStringSet()
+fasta_input = "https://karengoncalves.github.io/Programming_classes/exampleData/Reductases.fasta" %>%
+	readAAStringSet(format = "fasta")
+head(fasta_input)
+
+# If you want to select just one or two sequences and export it, you can do:
+writeXStringSet(fasta_input[1:3], 
+		filepath = "input_subset.fasta", 
+		format = "fasta")
+```
+
+## Multiple Sequence Alignment (MSA)
+
+Make things easy for yourself later, add the names of the parameters of each function so you know what you need to put next time.
+
+- There are 4 functions for MSA:
+	- `msaClustalW` - ClustalW is a general purpose multiple alignment program for DNA or proteins. [<sup>1</sup>](http://www.clustal.org/download/clustalw_help.txt)
+		- `cluster` parameter can be either Neighbor Joining (`"nj"`) or Unweighted Pair Group Method with Arithmetic mean (`"upgma"`)
+			- Do not use `"upgma"` if you are on windows and your R version is 4.x (x being any number) - R crashes
+	- `msaClustalOmega` - New MSA tool that uses seeded guide trees and HMM profile-profile techniques to generate alignments. Suitable for medium-large alignments.[<sup>2</sup>](https://www.ebi.ac.uk/Tools/msa/)
+		- default `substitutionMatrix`: `"Gonnet"`; other options: `"BLOSUM30"`, `"BLOSUM40`, `"BLOSUM50"`, `"BLOSUM65"` and `"BLOSUM80"`.
+	- `msaMuscle` - Accurate MSA tool, especially good with proteins. Suitable for medium alignments.[<sup>2</sup>](https://www.ebi.ac.uk/Tools/msa/)
+		- `cluster` parameter can be either NJ (`"neighborjoining"`) or UPGMA (`"upgma"`) - UPGMA gives better results [<sup>3</sup>](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC517706/)
+	- `msa` - you can set the method with the argument `method` or just put the sequences and use the default (`"Clustalw"`) (other options: `"ClustalOmega"`, `"Muscle"`)
+
+- Add `verbose = T` so that the parameters used are printed to the screen and you can take note for your publications.
+
+## Running MSA
+
+```{r}
+# The dataset used as example has 48 sequences, we will subset it for the alignment, selecting only 10
+fasta_for_alignment <- fasta_input[1:10]
+# use ?msa to know what you need to put in the function and what the default values are
+myFirstAlignment <- msa(fasta_for_alignment, 
+			method = "ClustalOmega",
+			verbose = T
+)
+
+myFirstAlignment
+```
+
+:::{.callout-note}
+
+# Visualizing the result
+
+Just calling the MSA result will not show the whole alignment. For that you can use `print()`
+
+```{.r}
+print(myFirstAlignment, show = "complete", showConsensus = T)
+```
+:::
+
+## Use ggmsa for visualization
+
+To see the alignment as a plot, we can use `ggmsa`.
+
+:::{.callout-note}
+
+We need to change the type of object of the alignment result, as `ggmsa` only accepts `"AAMultipleAlignment"` objects
+
+:::
+
+```{r}
+# The original result is of class MsaAAMultipleAlignment
+myFirstAlignment2 <- myFirstAlignment # keep the original, make a copy to modify it
+class(myFirstAlignment2) <-  "AAMultipleAlignment"
+
+# We will plot only a part of the alignment - from the AA 220 to the AA 250 - so it is visible 
+ggmsa(myFirstAlignment2, 
+      start = 220, end = 250, 
+      seq_name = T)
+
+# We can see also the consensus highlighted
+ggmsa(myFirstAlignment2, 
+      start = 220, end = 250, 
+      seq_name = T, consensus_views = T)
+
+# Remove the # below if you want to save the figure
+#ggsave("First_alignment_consensus_220_250.tiff")
+```
+
+## More `ggmsa` options
+
+:::{.panel-tabset}
+
+# Residue size
+
+We can set the width of the characters (use `char_width = #`), so the residues are not so big
+
+```{r}
+ggmsa(myFirstAlignment2, 
+      start = 220, end = 250, 
+      seq_name = T, char_width = 0.5)
+
+```
+
+# SeqLogo
+
+A seqlogo is a plot with letters on top of each other representing their frequency at each position in the alignment. The bigger a letter, the more frequent it is at a given position. 
+
+- We can add this plot with `+ geom_seqlogo()`
+	- you can use different color schemes with `geom_seqlogo(color = #)`<sup>1</sup>
+	- you can set your color scheme with `geom_seqlogo(custom_color = data.frame)`<sup>1</sup>
+	
+```{r}
+ggmsa(myFirstAlignment2, 
+      start = 220, end = 250, 
+      seq_name = T, char_width = 0.5) + 
+	geom_seqlogo() 
+# Note that the gaps are also represented in the seqlogo!
+
+```
+
+:::{.callout-tip}
+<sup>1</sup> Check the options with `?geom_seqlogo`
+:::
+
+# Consensus as bar graph
+
+```{r}
+ggmsa(myFirstAlignment2, 
+      start = 220, end = 250, 
+      seq_name = T, char_width = 0.5) + 
+	geom_seqlogo() +
+	geom_msaBar()
+```
+
+:::
+
+## Make a phylogenetic tree
+
+**Learn what is necessary to make a tree, how to read it and what conclusions you can and cannot draw from them.**
+
+- Sequences used for the tree are the leaves/tips.
+- The point where the tree starts (the center if it is circular, or the first tip to separate from the rest of the tree) is the root
+- The lines drawing the tree are the branches/edges.
+- Going from the leaves to the root, the point where two branches connect is called a node
+
+
+## Compute the distance matrix
+
+We will use `ape` and `seqinr` to create a tree from the alignment. But we need to, again, transform the type of object we got from the `msa`.
+
+Then we calculate a distance matrix.
+
+:::{.callout-tip}
+A distance matrix shows how different each sequence is from the others. It has as many rows as columns, since every sequence is compared to the others. 
+
+- Its diagonal is all `0`s, since the difference between a sequence and itself is `0`. 
+- The other rows and columns are values that indicate the amount of mismatches between two sequences. The greater the number, the less similar the two sequences are.
+
+:::
+
+```{r}
+# We need to first export the alignment and import it again to transform it 
+myFirstAlignment3 <- 
+	myFirstAlignment %>% as.phyDat()
+
+# Then, we create a distance matrix
+distance_alignment <- 
+	dist.ml(x = myFirstAlignment3, 
+		model = "Blosum62")
+```
+
+
+## Tree computation
+
+Then, we use the distance matrix to compute the tree, joining sequences most similar, then joining groups of sequences. Each method of computing will do this joining differently.
+
+:::{.panel-tabset}
+
+# nj
+
+This function performs the neighbor-joining tree estimation of [Saitou and Nei (1987)](https://academic.oup.com/mbe/article/4/4/406/1029664?login=false).
+
+
+```{r}
+nj(X = distance_alignment) %>% plot(main = "ape::nj()")
+
+nj(X = distance_alignment) %>% 
+	plot(main = "phangorn::NJ()")
+```
+
+# bionj
+
+This function performs the BIONJ algorithm of [Gascuel (1997)](https://academic.oup.com/mbe/article/14/7/685/1119804?login=false).
+
+```{r}
+bionj(X = distance_alignment) %>% plot(main = "ape::bionj")
+UNJ(distance_alignment) %>% plot(main = "phangorn::UNJ")
+```
+
+# fastme
+
+The two FastME (fast minimum evolution) functions (balanced - bal - and ordinary least-squares - ols) perform the minimum evolution algorithm of [Desper and Gascuel (2002)](https://www.liebertpub.com/doi/10.1089/106652702761034136).
+
+```{r}
+fastme.bal(distance_alignment) %>% plot(main = "FastME BAL")
+
+fastme.ols(distance_alignment) %>% plot(main = "FastME OLS")
+```
+
+# UPGMA/WPGMA
+
+- UPGMA: uses the function `hclust` (hierarchical clustering) with `method = "average"`, then transforms the dendrogram into the class `phylo`. 
+- WPGMA:  uses the function `hclust` with `method = "mcquitty"`, then transforms the dendrogram into the class `phylo`. 
+
+Run `?hclust` then look the section "Details": the methods are explained with more details with references.
+
+```{r}
+upgma(distance_alignment) %>% plot(main = "UPGMA")
+
+wpgma(distance_alignment) %>% plot(main = "WPGMA")
+```
+
+:::
+
+## Customizing the plot
+
+We can use dplyr to separate protein and species names.
+
+:::{.panel-tabset}
+
+# Get the tree
+
+```{r}
+upgma_tree <- upgma(distance_alignment)
+# We save the tree in a object so we can access the leaf labes with $tip.label
+```
+
+# Prepare the labels 
+
+We will use a function called `parse` to italicize only the species name. It evaluates the text and executes functions inside it! Example, in:
+
+`"'TYDC '~italic('Narcissus pseudonarcissus')"`
+
+The texts `'TYDC '` and `'Narcissus pseudonarcissus'` (in italic) are joined by the symbol `~`.
+
+In this case, the protein name has just letters and numbers and is at the start of the sequence name, followed by the species name. So we can use `gsub` to create the label we want.
+
+```{r}
+Seqnames_tree <- 
+	gsub("(\\w+) (.+)", 
+	     "'\\1 '~italic('\\2')",
+	     upgma_tree$tip.label)
+upgma_tree$tip.label <- Seqnames_tree
+```
+
+:::{.callout-note}
+Check the result before plotting. See that your result looks like the example with `TYDC` above, as you need to use both double and single quotes.
+:::
+
+# Plot the labels
+
+```{r}
+ggtree(upgma_tree) +
+	# use geom_tiplab to plot the seqnames
+	# add parse = T so R executes the function inside the text
+	geom_tiplab(parse = T) +
+	xlim(c(0, 2)) 
+	# the upper x limit may change depending on the length of your labels, play around until you get the whole label but little empty space
+```
+
+:::
+
+## More customization
+
+Let's say you want to add bars marking different groups in a tree, like the vertical bars marking the clades in the figure below [(Figure 3 in Hori et al. 2006)](https://doi.org/10.1266/GGS.81.243):
+
+![](https://d3i71xaburhd42.cloudfront.net/82a7b788497724f0aee9b8b3ff45650c3489edfb/5-Figure3-1.png){width=40%}
+
+## Highlight important nodes
+
+:::{.panel-tabset}
+
+# Identify the nodes
+
+Just as we added the names of the leaves, we can add the names of the nodes with `geom_text(aes(label=node))`
+
+We may need to play around with the `hjust`, which goes after `aes()`, inside `geom_text()`
+
+```{r}
+ggtree(upgma_tree) +
+	geom_text(aes(label = node), hjust = -.2) +
+	geom_tiplab(parse = T, hjust = -.15) +
+	xlim(c(0, 2))
+```
+
+# Mark groups
+
+In our example tree, there are 2 main groups: nodes 12 and 13. We can use the function`geom_cladelabel` to mark each one
+
+:::{.callout-note}
+There is also `geom_cladelab`, but you cannot change the color of the text with it
+:::
+
+```{r}
+ggtree(upgma_tree) +
+	# we do not need the line below anymore
+	#geom_text(aes(label = node), hjust = -.2) +
+	geom_tiplab(parse = T) +
+	geom_cladelabel(node = 12, label = "Node 12",
+			color = "red", offset = 1) +
+	geom_cladelabel(node = 13, label = "Node 13",
+			color = "green4", offset = 1,
+			barsize = 2) +
+	xlim(c(0, 2.5))
+
+```
+
+# Highlight groups
+
+You can draw a rectangle around the node and its branches using `geom_highlight`
+
+```{r}
+ggtree(upgma_tree) +
+	# we do not need the line below anymore
+	#geom_text(aes(label = node), hjust = -.2) +
+	geom_tiplab(parse = T) +
+	geom_highlight(node = 12,
+		       fill = "red") +
+	# change the transparency of the rectangle with alpha
+	geom_cladelabel(node = 13, label = "Node 13",
+			color = "green4", offset = 1,
+			barsize = 2) +
+	xlim(c(0, 2.5))
+```
+
+:::
+
+## Statistical support
+
+The statistical support on phylogenetic trees is calculated with bootstrap. In simple terms, bootstrap is repetition. In more complicated terms, the tree computation (including the calculation of the distance matrix) is repeated *n times*<sup>`1`</sup>, and the result shows the proportion of times the node appeared.
+
+If out of 1000 times, a given group appears 100 times, its support is 10%.
+
+<sup>`1`</sup> n is determined by the number of sequences you are working with. 
+
+- n is the number of times the calculation was repeated, so it includes the first time. That is why you may see it reported as 'bootstrap was performed with 999 replicates' (plus the original tree calculation, you get 1&nbsp;000 replicates)
+- Although more is better, using n=10&nbsp;000 for a tree of 10 sequences is overkill and may take too much time to calculate.
+- The most typical n used (for < 50 sequences in a tree) is 999
+
+## Bootstrap support
+
+Let's consider that we want to use `upgma` to calculate our tree and we want to calculate the support of the branches.
+
+:::{.panel-tabset}
+
+# Computation
+
+We use the function `bootstrap.phyDat` the same way we use `sapply`: using this dataset, perform this set of functions.
+
+```{r}
+upgma_tree <- myFirstAlignment3 |>
+	dist.ml() |> upgma()
+bs_upgma <- bootstrap.phyDat(
+	myFirstAlignment3, 
+	bs = 100, \(x){
+		dist.ml (x) |> upgma()
+	})
+
+bs_plot <- plotBS(upgma_tree, bs_upgma)
+# The data stored in bs_plot is exactly what we need for ggtree
+```
+
+# Tree preparation
+
+Since this is a new file, we need to correct the sequence names again.
+
+We also set a threshold for bootstrap. Only values passing the threshold are shown.
+
+```{r}
+bs_plot2 <- bs_plot
+
+# We correct the sequence names
+Seqnames_tree <- 
+	gsub("(\\w+) (.+)", 
+	     "'\\1 '~italic('\\2')",
+	     bs_plot$tip.label)
+bs_plot2$tip.label <- Seqnames_tree
+
+# Bootstrap threshold
+bs_threshold <- 50
+bs_plot2$node.label <- 
+	ifelse(bs_plot$node.label < bs_threshold,
+	       "", bs_plot$node.label)
+```
+
+# Plot
+
+```{r}
+ggtree(bs_plot2) +
+	geom_tiplab(parse = T) +
+	geom_highlight(node = 12,
+		       fill = "red") +
+	geom_nodelab(nudge_x = 0.03) +
+	# we use nudge_x to move the label away from the branches
+	xlim(c(0, 1.5))
+```
+
+# Export
+
+We export the trees to a newick (.nwk) file
+
+This format is readable by any program working with trees. 
+
+```{r}
+write.tree(bs_upgma, file = "bootstrap_upgma_trees.nwk")
+```
+
+:::
+
+## Resources
+
+- [Multiple sequence alignment in R - msa](https://www.bioconductor.org/packages/release/bioc/vignettes/msa/inst/doc/msa.pdf)
+- [ape: phylogenetic trees](https://cran.r-project.org/web/packages/ape/vignettes/DrawingPhylogenies.pdf)
+- [ggmsa](https://yulab-smu.top/ggmsa/)
+- [ggtree](https://bioconnector.github.io/workshops/r-ggtree.html)
+- [phangorn](https://cran.r-project.org/web/packages/phangorn/vignettes/Trees.html)
+
+## Aminoacid substitution models for `dist.ml()`
+
+- ['BLOSUM62'](https://www.nature.com/articles/nbt0804-1035)
+- ['WAG'](doi.org/10.1093/oxfordjournals.molbev.a003851)
+- ['JTT'](http://dx.doi.org/10.1093/bioinformatics/8.3.275)
+- ['LG'](http://dx.doi.org/10.1093/molbev/msn067)
+- ['Dayhoff'](http://profs.scienze.univr.it/~liptak/ALBioinfo/2011_2012/files/pam1.pdf)
+- ['cpREV'](http://dx.doi.org/10.1007/s002399910038)
+- ['VT'](http://dx.doi.org/10.1089/10665270050514918)
+- ['rtREV'](http://dx.doi.org/10.1007/s00239-001-2304-y)
+- ['Dayhoff_DCMut'and 'JTT_DCMut'](http://dx.doi.org/10.1093/molbev/msi005)
+
+
+
+Specific
+
+- Mitochondrial  
+	- ['mtmam'](http://dx.doi.org/10.1093/oxfordjournals.molbev.a025888)
+	- ['mtzoa'](https://doi.org/10.1016/j.ympev.2009.01.011)
+	- ['mtREV24'](http://stat.sys.i.kyoto-u.ac.jp/titech/class/doc/csm96.pdf)
+	- Arthropoda:  ['mtart'](http://dx.doi.org/10.1093/molbev/msl136)
+	- HIV:  ['HIVb' and 'HIVw'](http://dx.doi.org/10.1007/s00239-001-2304-y)
