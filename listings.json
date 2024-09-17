@@ -1,0 +1,48 @@
+[
+  {
+    "listing": "/index.html",
+    "items": [
+      "/r/Before_1stClass/index.html",
+      "/r/basics/index.html",
+      "/r/Packages_Functions/index.html",
+      "/r/MSA_phylogenetic_trees/index.html",
+      "/r/Get_read_counts/index.html",
+      "/r/DEA/index.html",
+      "/r/plots_DEA/index.html",
+      "/unix/Class1_BasicCommands/index.html",
+      "/unix/Class2_Connection_FileTransfer/index.html",
+      "/unix/Class3_runningJobs/index.html",
+      "/unix/Class5_AWK/index.html",
+      "/unix/Class4_blast/index.html",
+      "/unix/Class6_SED/index.html"
+    ]
+  },
+  {
+    "listing": "/unix_useful_commands/index.html",
+    "items": [
+      "/unix_useful_commands/posts/basic_concepts.html",
+      "/unix_useful_commands/posts/where_who.html",
+      "/unix_useful_commands/posts/ls.html",
+      "/unix_useful_commands/posts/files_directories.html",
+      "/unix_useful_commands/posts/read_write_text.html",
+      "/unix_useful_commands/posts/grep_sed.html",
+      "/unix_useful_commands/posts/file_transfer.html",
+      "/unix_useful_commands/posts/server.html",
+      "/unix_useful_commands/posts/ssh_key_config.html"
+    ]
+  },
+  {
+    "listing": "/useful_R_commands/index.html",
+    "items": [
+      "/useful_R_commands/posts/help.html",
+      "/useful_R_commands/posts/numeric_data.html",
+      "/useful_R_commands/posts/seq_rep.html",
+      "/useful_R_commands/posts/overview_data.html",
+      "/useful_R_commands/posts/resources.html",
+      "/useful_R_commands/posts/environment_packages.html",
+      "/useful_R_commands/posts/read_files.html",
+      "/useful_R_commands/posts/spreadsheets.html",
+      "/useful_R_commands/posts/working_with_text.html"
+    ]
+  }
+]
