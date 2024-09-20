@@ -7,6 +7,7 @@ project:
     - "media/*png"
     - "media/*jpg"
     - "scripts_for_class/*"
+    - "exampleData/*"
 website:
   favicon: "bioinformatics_6281473.png"
   title: "Programming classes"
