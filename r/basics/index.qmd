@@ -110,13 +110,13 @@ Load your dataset (from the preparatory slides `To do before the first class`, [
 
 - Note the columns are separated by tabs 
 - You do not need to download a file to read it (use the link in place of the file path):
-  - `"https://karengoncalves.github.io/Programming_classes/exampleData/Class1_exampleData.txt"` or
+  - `"https://karengoncalves.github.io/ProgrammingClasses/exampleData/Class1_exampleData.txt"` or
   - Download it to your project's "Inputs" folder and use the path `"Inputs/Class1_exampleData.txt"`
 
 . . .
 
 ```{r, echo = T}
-filepath = "https://karengoncalves.github.io/Programming_classes/exampleData/Class1_exampleData.txt"
+filepath = "https://karengoncalves.github.io/ProgrammingClasses/exampleData/Class1_exampleData.txt"
 myFirstInput = read.delim(filepath, header = T, row.names = 1)
 ```
 
@@ -386,7 +386,7 @@ cheat_sheet[-1,] %>%
 	kableExtra::kable(
 		format = "html", 
 		col.names = colNames, row.names = F) %>% 
-	kableExtra::kable_classic(lightable_options = "hover")
+	kableExtra::kable_material_dark(lightable_options = "hover")
 
 ```
 
