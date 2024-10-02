@@ -30,3 +30,5 @@
 
 # R Environment Variables
 .Renviron.quarto/
+r/*/index.html
+unix/*/index.html
