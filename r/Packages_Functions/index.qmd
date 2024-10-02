@@ -210,7 +210,7 @@ You can load files from the internet without needing to download them to your co
 
 ```{r}
 # You could first put the path to the file in a variable, it would make things easier
-myFile = "https://karengoncalves.github.io/Programming_classes/exampleData/Class1_exampleData.txt"
+myFile = "https://karengoncalves.github.io/ProgrammingClasses/exampleData/Class1_exampleData.txt"
 
 str(read.delim(myFile))
 
@@ -225,7 +225,7 @@ Basically, the first function written is the first one used, not the last.
 
 ```{.r}
 # You can also use a pipe ( %>% )
-myFile = "https://karengoncalves.github.io/Programming_classes/exampleData/Class1_exampleData.txt"
+myFile = "https://karengoncalves.github.io/ProgrammingClasses/exampleData/Class1_exampleData.txt"
 
 read.delim(myFile) %>% str
 ```
@@ -369,7 +369,7 @@ In the example dataset, the names of the groups are in the middle not specified,
 
 # Input data
 ```{r}
-myFile = "https://karengoncalves.github.io/Programming_classes/exampleData/Class1_exampleData.txt"
+myFile = "https://karengoncalves.github.io/ProgrammingClasses/exampleData/Class1_exampleData.txt"
 ```
 
 ```{r}
@@ -610,7 +610,7 @@ We will use the [time series data](../../exampleData/TimeSeries_example.csv)
 
 ```{r}
 # Load the data
-timeSeries.File = "https://karengoncalves.github.io/Programming_classes/exampleData/TimeSeries_example.csv"
+timeSeries.File = "https://karengoncalves.github.io/ProgrammingClasses/exampleData/TimeSeries_example.csv"
 timeSeries = read.csv(timeSeries.File)
 ```
 
